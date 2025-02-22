@@ -1,0 +1,11 @@
+[package]
+name = "goldenrod_renderer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy_ecs = { version = "0.15.1" }
+egui-wgpu = "0.30.0"
+egui-winit = "0.30.0"
+wgpu = "24.0.0"
+winit = "0.30.8"
