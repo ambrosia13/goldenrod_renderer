@@ -158,19 +158,3 @@ pub struct FrameData {
 
 #[derive(Event)]
 pub struct WindowResizeEvent(pub PhysicalSize<u32>);
-
-pub struct Texture {
-    inner: wgpu::Texture,
-}
-
-pub struct BindGroupLayout {
-    inner: wgpu::BindGroupLayout,
-    gpu_handle: GpuHandle,
-}
-
-pub struct BindGroup {
-    source: Vec<(wgpu::BindingType, Entity)>,
-    layout: Entity,
-    inner: wgpu::BindGroup,
-    gpu_handle: GpuHandle,
-}

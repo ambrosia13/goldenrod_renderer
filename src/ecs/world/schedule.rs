@@ -4,8 +4,8 @@ use bevy_ecs::{
 };
 
 use crate::{
+    app::{input, time},
     ecs::event,
-    game::{input, time},
     render::WindowResizeEvent,
 };
 

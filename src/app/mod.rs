@@ -12,8 +12,8 @@ use winit::{
 
 use crate::{
     ecs::{world::schedule::ScheduleRunner, Wrapper},
+    egui::EguiRenderState,
     render::{FrameData, RenderState, WindowResizeEvent},
-    ui::EguiRenderState,
 };
 
 pub mod input;

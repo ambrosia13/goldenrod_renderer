@@ -1,14 +1,14 @@
 use env_logger::Env;
 
+mod app;
 mod ecs;
-mod game;
+mod egui;
 mod render;
-mod ui;
 
 fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("warn"))
         .filter_module("goldenrod", log::LevelFilter::Info)
         .init();
 
-    game::run();
+    app::run();
 }
