@@ -2,6 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use bevy_ecs::system::Resource;
 
+pub mod event;
 pub mod world;
 
 #[derive(Resource)]

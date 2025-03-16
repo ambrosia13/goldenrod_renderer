@@ -3,6 +3,12 @@ use bevy_ecs::{
     world::World,
 };
 
+use crate::{
+    ecs::event,
+    game::{input, time},
+    render::WindowResizeEvent,
+};
+
 #[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
 struct InitRenderSchedule;
 
@@ -25,6 +31,9 @@ struct PostUpdateRenderSchedule;
 struct UpdateMainSchedule;
 
 #[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
+struct PostUpdateMainSchedule;
+
+#[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
 struct UpdateEventSchedule;
 
 pub struct ScheduleRunner {
@@ -38,6 +47,7 @@ pub struct ScheduleRunner {
     update_render: Schedule,
     post_update_render: Schedule,
     update_main: Schedule,
+    post_update_main: Schedule,
     update_event: Schedule,
 }
 
@@ -47,7 +57,9 @@ impl Default for ScheduleRunner {
 
         let init_main = Schedule::new(InitMainSchedule);
 
-        let init_event = Schedule::new(InitEventSchedule);
+        let mut init_event = Schedule::new(InitEventSchedule);
+
+        init_event.add_systems(event::init::<WindowResizeEvent>);
 
         let pre_update_render = Schedule::new(PreUpdateRenderSchedule);
 
@@ -57,7 +69,13 @@ impl Default for ScheduleRunner {
 
         let update_main = Schedule::new(UpdateMainSchedule);
 
-        let update_event = Schedule::new(UpdateEventSchedule);
+        let mut post_update_main = Schedule::new(PostUpdateMainSchedule);
+
+        post_update_main.add_systems((input::update_system, time::update_system));
+
+        let mut update_event = Schedule::new(UpdateEventSchedule);
+
+        update_event.add_systems(event::update::<WindowResizeEvent>);
 
         Self {
             init_render,
@@ -67,12 +85,15 @@ impl Default for ScheduleRunner {
             update_render,
             post_update_render,
             update_main,
+            post_update_main,
             update_event,
         }
     }
 }
 
 impl ScheduleRunner {
+    pub fn add_observers(world: &mut World) {}
+
     pub fn startup(&mut self, world: &mut World) {
         self.init_render.run(world);
         self.init_main.run(world);
@@ -85,6 +106,7 @@ impl ScheduleRunner {
         self.post_update_render.run(world);
 
         self.update_main.run(world);
+        self.post_update_main.run(world);
         self.update_event.run(world);
     }
 }

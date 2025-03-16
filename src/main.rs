@@ -1,8 +1,14 @@
+use env_logger::Env;
+
 mod ecs;
 mod game;
 mod render;
-mod window;
+mod ui;
 
 fn main() {
-    println!("Hello, world!");
+    env_logger::Builder::from_env(Env::default().default_filter_or("warn"))
+        .filter_module("goldenrod", log::LevelFilter::Info)
+        .init();
+
+    game::run();
 }

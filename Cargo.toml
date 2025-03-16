@@ -4,8 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy_ecs = { version = "0.15.1" }
-egui-wgpu = "0.30.0"
-egui-winit = "0.30.0"
+env_logger = "0.11.6"
+log = "0.4.26"
+pollster = "0.4.0"
+
 wgpu = "24.0.0"
 winit = "0.30.8"
+
+egui = "0.31.1"
+egui-wgpu = { version = "0.31.1", features = ["winit"] }
+egui-winit = "0.31.1"
+
+bevy_ecs = { version = "0.15.1" }
+glam = "0.30.0"
