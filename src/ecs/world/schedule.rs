@@ -1,10 +1,10 @@
 use bevy_ecs::{
-    schedule::{Schedule, ScheduleLabel},
+    schedule::{IntoSystemConfigs, Schedule, ScheduleLabel},
     world::World,
 };
 
 use crate::{
-    app::{input, time},
+    app::{fps, input, menu, time},
     ecs::event,
     render::WindowResizeEvent,
 };
@@ -55,7 +55,9 @@ impl Default for ScheduleRunner {
     fn default() -> Self {
         let init_render = Schedule::new(InitRenderSchedule);
 
-        let init_main = Schedule::new(InitMainSchedule);
+        let mut init_main = Schedule::new(InitMainSchedule);
+
+        init_main.add_systems((fps::FpsCounter::init, menu::Menu::init));
 
         let mut init_event = Schedule::new(InitEventSchedule);
 
@@ -67,11 +69,17 @@ impl Default for ScheduleRunner {
 
         let post_update_render = Schedule::new(PostUpdateRenderSchedule);
 
-        let update_main = Schedule::new(UpdateMainSchedule);
+        let mut update_main = Schedule::new(UpdateMainSchedule);
+
+        update_main.add_systems(menu::Menu::update);
 
         let mut post_update_main = Schedule::new(PostUpdateMainSchedule);
 
-        post_update_main.add_systems((input::update_system, time::update_system));
+        post_update_main.add_systems((
+            input::update_system,
+            // Updating the fps counter comes before the time so we can get the most accurate time before the frame ends
+            (fps::FpsCounter::update, time::update_system).chain(),
+        ));
 
         let mut update_event = Schedule::new(UpdateEventSchedule);
 

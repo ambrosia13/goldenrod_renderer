@@ -16,7 +16,9 @@ use crate::{
     render::{FrameData, RenderState, WindowResizeEvent},
 };
 
+pub mod fps;
 pub mod input;
+pub mod menu;
 pub mod time;
 
 pub fn run() {
@@ -171,18 +173,9 @@ impl ApplicationHandler for App {
                     .surface_texture
                     .texture
                     .create_view(&Default::default());
-                let frame_count = world.resource::<Time>().frame_count();
 
                 let mut egui_render_state = world.resource_mut::<EguiRenderState>();
                 egui_render_state.begin_frame(window);
-
-                egui::Window::new("goldenrod renderer").show(egui_render_state.context(), |ui| {
-                    if ui.button("Click me").clicked() {
-                        log::info!("Button clicked");
-                    }
-
-                    ui.label(format!("Frames: {}k", frame_count / 1000));
-                });
 
                 // Pass over ownership of the frame data to the world, to let all the systems freely use it
                 world.insert_resource(frame);
