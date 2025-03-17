@@ -3,6 +3,8 @@ use std::sync::Arc;
 use bevy_ecs::{entity::Entity, event::Event, system::Resource};
 use winit::{dpi::PhysicalSize, window::Window};
 
+pub mod texture;
+
 pub const WGPU_FEATURES: wgpu::Features = wgpu::Features::FLOAT32_FILTERABLE
     .union(wgpu::Features::RG11B10UFLOAT_RENDERABLE)
     .union(wgpu::Features::TEXTURE_BINDING_ARRAY)
@@ -158,3 +160,6 @@ pub struct FrameData {
 
 #[derive(Event)]
 pub struct WindowResizeEvent(pub PhysicalSize<u32>);
+
+#[derive(Event)]
+pub struct RenderResourceUpdateEvent(pub Entity);
