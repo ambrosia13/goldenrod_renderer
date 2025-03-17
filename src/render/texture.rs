@@ -214,7 +214,7 @@ pub fn update_screen_size_textures(
 
         texture.recreate();
 
-        // mark this texture as being updated
+        // mark this texture as being updated for any resources that depend on it
         resource_update_events.send(RenderResourceUpdateEvent(entity));
     }
 }

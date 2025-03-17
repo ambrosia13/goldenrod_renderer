@@ -6,7 +6,7 @@ use bevy_ecs::{
 use crate::{
     app::{fps, input, menu, time},
     ecs::event,
-    render::WindowResizeEvent,
+    render::{shader, texture, WindowResizeEvent},
 };
 
 #[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
@@ -65,7 +65,12 @@ impl Default for ScheduleRunner {
 
         let pre_update_render = Schedule::new(PreUpdateRenderSchedule);
 
-        let update_render = Schedule::new(UpdateRenderSchedule);
+        let mut update_render = Schedule::new(UpdateRenderSchedule);
+
+        update_render.add_systems((
+            shader::recompile_shaders,
+            texture::update_screen_size_textures,
+        ));
 
         let post_update_render = Schedule::new(PostUpdateRenderSchedule);
 

@@ -3,6 +3,8 @@ use std::sync::Arc;
 use bevy_ecs::{entity::Entity, event::Event, system::Resource};
 use winit::{dpi::PhysicalSize, window::Window};
 
+pub mod buffer;
+pub mod shader;
 pub mod texture;
 
 pub const WGPU_FEATURES: wgpu::Features = wgpu::Features::FLOAT32_FILTERABLE
@@ -79,7 +81,7 @@ impl RenderState {
             .formats
             .iter()
             .copied()
-            .find(|f| f.is_srgb())
+            .find(|f| *f == wgpu::TextureFormat::Rgba8Unorm)
             .unwrap_or(surface_caps.formats[0]);
 
         let config = wgpu::SurfaceConfiguration {

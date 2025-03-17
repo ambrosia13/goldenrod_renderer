@@ -1,9 +1,10 @@
-use std::sync::Arc;
+use std::{collections::VecDeque, sync::Arc};
 
 use bevy_ecs::{
     system::{Res, ResMut, Resource},
     world::World,
 };
+use glam::Vec3;
 use winit::{keyboard::KeyCode, window::Window};
 
 use crate::{ecs::Wrapper, egui::EguiRenderState};
@@ -14,6 +15,8 @@ use super::{fps::FpsCounter, input::Input};
 pub struct Menu {
     pub central_viewport_start: Option<(u32, u32)>,
     pub central_viewport_end: Option<(u32, u32)>,
+
+    pub shader_compile_error: Option<String>,
 
     pub settings: Settings,
 }
@@ -51,15 +54,19 @@ impl Menu {
 
                     ui.heading("General");
 
-                    // Fullscreen
-                    menu.settings.fullscreen = ui.button("Fullscreen").clicked();
+                    let fullscreen_button = ui.button("Fullscreen");
+
+                    if fullscreen_button.hovered() {
+                        fullscreen_button.show_tooltip_text("Press ESC to open the menus again");
+                    }
+
+                    menu.settings.fullscreen = fullscreen_button.clicked();
 
                     ui.separator();
 
                     ui.heading("Path tracing");
-
-                    // Accumulation
-                    ui.checkbox(&mut menu.settings.accumulate, "Enable Accumulation");
+                    ui.checkbox(&mut menu.settings.accumulate, "Enable accumulation");
+                    ui.checkbox(&mut menu.settings.spectral, "Spectral rendering");
                 });
 
             egui::SidePanel::right("right")
@@ -77,6 +84,13 @@ impl Menu {
 
                     ui.heading("Camera");
                 });
+
+            // If there was a shader compile error, display it to the screen
+            if let Some(error) = &menu.shader_compile_error {
+                egui::Window::new("Shader compile error").show(egui_render_state.context(), |ui| {
+                    ui.label(error);
+                });
+            }
         }
 
         let window_size = window.inner_size();
@@ -93,6 +107,7 @@ impl Menu {
 pub struct Settings {
     pub fullscreen: bool,
     pub accumulate: bool,
+    pub spectral: bool,
 }
 
 impl Default for Settings {
@@ -100,6 +115,7 @@ impl Default for Settings {
         Self {
             fullscreen: false,
             accumulate: true,
+            spectral: true,
         }
     }
 }

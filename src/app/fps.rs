@@ -7,7 +7,7 @@ use bevy_ecs::{
 
 use super::time::Time;
 
-pub const FPS_NUM_SAMPLES: usize = 256;
+pub const FPS_NUM_SAMPLES: usize = 64;
 
 #[derive(Resource)]
 pub struct FpsCounter {

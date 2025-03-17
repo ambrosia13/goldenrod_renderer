@@ -400,9 +400,9 @@ checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
 name = "bytemuck"
-version = "1.21.0"
+version = "1.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef657dfab802224e671f5818e9a4935f9b1957ed18e58292690cc39e7a4092a3"
+checksum = "b6b1fc10dbac614ebc03540c9dbd60e83887fda27794998c6528f1782047d540"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -1004,6 +1004,9 @@ name = "glam"
 version = "0.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17fcdf9683c406c2fc4d124afd29c0d595e22210d633cbdb8695ba9935ab1dc6"
+dependencies = [
+ "bytemuck",
+]
 
 [[package]]
 name = "glow"
@@ -1031,13 +1034,17 @@ name = "goldenrod_renderer"
 version = "0.1.0"
 dependencies = [
  "bevy_ecs",
+ "bytemuck",
  "egui",
  "egui-wgpu",
  "egui-winit",
  "env_logger",
  "glam",
+ "gpu_bytes",
+ "gpu_bytes_derive",
  "log",
  "pollster",
+ "regex",
  "wgpu",
  "winit",
 ]
@@ -1091,6 +1098,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fdf242682df893b86f33a73828fb09ca4b2d3bb6cc95249707fc684d27484b91"
 dependencies = [
  "bitflags 2.8.0",
+]
+
+[[package]]
+name = "gpu_bytes"
+version = "0.1.0"
+source = "git+https://github.com/ambrosia13/gpu_bytes.git#8ec8c6631832af6eb06e43aaea63f4ba784cacbd"
+dependencies = [
+ "bytemuck",
+ "glam",
+]
+
+[[package]]
+name = "gpu_bytes_derive"
+version = "0.1.0"
+source = "git+https://github.com/ambrosia13/gpu_bytes_derive.git#672719d9f84f805fd2b92547032fc1da44885e3a"
+dependencies = [
+ "gpu_bytes",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
