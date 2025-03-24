@@ -14,7 +14,7 @@ use regex::Regex;
 
 use crate::app::menu::Menu;
 
-use super::{GpuHandle, RenderResourceUpdateEvent};
+use super::GpuHandle;
 
 fn path_name_to_string<P: AsRef<Path>>(path: P) -> String {
     // ew
@@ -295,9 +295,8 @@ impl Shader {
 pub struct ShaderRecompileEvent;
 
 pub fn recompile_shaders(
-    mut shader_query: Query<(Entity, &mut Shader)>,
+    mut shader_query: Query<&mut Shader>,
     mut recompile_events: EventReader<ShaderRecompileEvent>,
-    mut resource_update_events: EventWriter<RenderResourceUpdateEvent>,
     mut menu: ResMut<Menu>,
 ) {
     // If there's no recompile events we don't need to do anything
@@ -305,14 +304,11 @@ pub fn recompile_shaders(
         return;
     }
 
-    for (entity, mut shader) in shader_query.iter_mut() {
+    for mut shader in shader_query.iter_mut() {
         shader.source.reload();
         let error = shader.recreate();
 
         // If there is an error, send it to menu so it can be displayed
         menu.shader_compile_error = error.map(|e| e.to_string());
-
-        // mark this shader as updated so things that depend on it (e.g. pipelines) can update accordingly
-        resource_update_events.send(RenderResourceUpdateEvent(entity));
     }
 }

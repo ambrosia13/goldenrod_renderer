@@ -1,10 +1,10 @@
 use std::{marker::PhantomData, num::NonZero};
 
-use bevy_ecs::component::Component;
+use bevy_ecs::{component::Component, entity::Entity};
 use gpu_bytes::{AsStd430, Std430Bytes};
 use wgpu::util::DeviceExt;
 
-use super::GpuHandle;
+use super::{binding::BindingEntry, GpuHandle};
 
 #[derive(Component)]
 pub struct Buffer {
@@ -74,6 +74,49 @@ impl Buffer {
             )
             .unwrap()
             .copy_from_slice(data);
+    }
+
+    pub fn bind_uniform(
+        &self,
+        offset: usize,
+        size: Option<usize>,
+        has_dynamic_offset: bool,
+    ) -> BindingEntry {
+        BindingEntry {
+            binding_type: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset,
+                min_binding_size: None,
+            },
+            count: None,
+            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                buffer: &self.buffer,
+                offset: offset as u64,
+                size: size.map(|s| s as u64).and_then(NonZero::new),
+            }),
+        }
+    }
+
+    pub fn bind_storage(
+        &self,
+        read_only: bool,
+        offset: usize,
+        size: Option<usize>,
+        has_dynamic_offset: bool,
+    ) -> BindingEntry {
+        BindingEntry {
+            binding_type: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Storage { read_only },
+                has_dynamic_offset,
+                min_binding_size: None,
+            },
+            count: None,
+            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                buffer: &self.buffer,
+                offset: offset as u64,
+                size: size.map(|s| s as u64).and_then(NonZero::new),
+            }),
+        }
     }
 }
 
@@ -175,4 +218,16 @@ impl<T: AsStd430 + Default> BufferVec<T> {
     //     // Subtract 4
     //     let existing_element_count = (self.inner.size - 4) - element_size;
     // }
+
+    pub fn bind(&self, read_only: bool) -> BindingEntry {
+        BindingEntry {
+            binding_type: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Storage { read_only },
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+            resource: self.inner.buffer.as_entire_binding(),
+        }
+    }
 }

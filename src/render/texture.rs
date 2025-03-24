@@ -10,7 +10,7 @@ use bevy_ecs::{
 
 use crate::app::menu::Menu;
 
-use super::{GpuHandle, RenderResourceUpdateEvent, WindowResizeEvent};
+use super::{GpuHandle, WindowResizeEvent};
 
 #[derive(Debug, Clone, Copy)]
 pub enum TextureType {
@@ -195,9 +195,8 @@ impl Texture {
 pub struct ScreenSizeTexture;
 
 pub fn update_screen_size_textures(
-    mut texture_query: Query<(Entity, &mut Texture), With<ScreenSizeTexture>>,
+    mut texture_query: Query<&mut Texture, With<ScreenSizeTexture>>,
     mut resize_events: EventReader<WindowResizeEvent>,
-    mut resource_update_events: EventWriter<RenderResourceUpdateEvent>,
     menu: Res<Menu>,
 ) {
     // If there's no resize events, we don't need to update the textures
@@ -208,13 +207,10 @@ pub fn update_screen_size_textures(
     let new_width = menu.central_viewport_end.unwrap().0 - menu.central_viewport_start.unwrap().0;
     let new_height = menu.central_viewport_end.unwrap().1 - menu.central_viewport_start.unwrap().1;
 
-    for (entity, mut texture) in texture_query.iter_mut() {
+    for mut texture in texture_query.iter_mut() {
         texture.desc.size.width = new_width;
         texture.desc.size.height = new_height;
 
         texture.recreate();
-
-        // mark this texture as being updated for any resources that depend on it
-        resource_update_events.send(RenderResourceUpdateEvent(entity));
     }
 }

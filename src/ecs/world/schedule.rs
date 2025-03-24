@@ -6,7 +6,10 @@ use bevy_ecs::{
 use crate::{
     app::{fps, input, menu, time},
     ecs::event,
-    render::{shader, texture, WindowResizeEvent},
+    render::{
+        shader::{self, ShaderRecompileEvent},
+        texture, WindowResizeEvent,
+    },
 };
 
 #[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
@@ -53,42 +56,42 @@ pub struct ScheduleRunner {
 
 impl Default for ScheduleRunner {
     fn default() -> Self {
-        let init_render = Schedule::new(InitRenderSchedule);
-
         let mut init_main = Schedule::new(InitMainSchedule);
-
         init_main.add_systems((fps::FpsCounter::init, menu::Menu::init));
 
-        let mut init_event = Schedule::new(InitEventSchedule);
-
-        init_event.add_systems(event::init::<WindowResizeEvent>);
-
-        let pre_update_render = Schedule::new(PreUpdateRenderSchedule);
-
-        let mut update_render = Schedule::new(UpdateRenderSchedule);
-
-        update_render.add_systems((
-            shader::recompile_shaders,
-            texture::update_screen_size_textures,
-        ));
-
-        let post_update_render = Schedule::new(PostUpdateRenderSchedule);
-
         let mut update_main = Schedule::new(UpdateMainSchedule);
-
         update_main.add_systems(menu::Menu::update);
 
         let mut post_update_main = Schedule::new(PostUpdateMainSchedule);
-
         post_update_main.add_systems((
             input::update_system,
             // Updating the fps counter comes before the time so we can get the most accurate time before the frame ends
             (fps::FpsCounter::update, time::update_system).chain(),
         ));
 
-        let mut update_event = Schedule::new(UpdateEventSchedule);
+        let init_render = Schedule::new(InitRenderSchedule);
 
-        update_event.add_systems(event::update::<WindowResizeEvent>);
+        let mut pre_update_render = Schedule::new(PreUpdateRenderSchedule);
+        pre_update_render.add_systems((
+            shader::recompile_shaders,
+            texture::update_screen_size_textures,
+        ));
+
+        let update_render = Schedule::new(UpdateRenderSchedule);
+
+        let post_update_render = Schedule::new(PostUpdateRenderSchedule);
+
+        let mut init_event = Schedule::new(InitEventSchedule);
+        init_event.add_systems((
+            event::init::<WindowResizeEvent>,
+            event::init::<ShaderRecompileEvent>,
+        ));
+
+        let mut update_event = Schedule::new(UpdateEventSchedule);
+        update_event.add_systems((
+            event::update::<WindowResizeEvent>,
+            event::update::<ShaderRecompileEvent>,
+        ));
 
         Self {
             init_render,
