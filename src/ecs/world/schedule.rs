@@ -4,7 +4,14 @@ use bevy_ecs::{
 };
 
 use crate::{
-    app::{fps, input, menu, time},
+    app::{
+        fps, input, menu,
+        object::{
+            AabbPopEvent, AabbPushEvent, MaterialPopEvent, MaterialPushEvent, SpherePopEvent,
+            SpherePushEvent, TrianglePopEvent, TrianglePushEvent,
+        },
+        time,
+    },
     ecs::event,
     render::{
         shader::{self, ShaderRecompileEvent},
@@ -85,12 +92,28 @@ impl Default for ScheduleRunner {
         init_event.add_systems((
             event::init::<WindowResizeEvent>,
             event::init::<ShaderRecompileEvent>,
+            event::init::<MaterialPushEvent>,
+            event::init::<MaterialPopEvent>,
+            event::init::<SpherePushEvent>,
+            event::init::<SpherePopEvent>,
+            event::init::<AabbPushEvent>,
+            event::init::<AabbPopEvent>,
+            event::init::<TrianglePushEvent>,
+            event::init::<TrianglePopEvent>,
         ));
 
         let mut update_event = Schedule::new(UpdateEventSchedule);
         update_event.add_systems((
             event::update::<WindowResizeEvent>,
             event::update::<ShaderRecompileEvent>,
+            event::update::<MaterialPushEvent>,
+            event::update::<MaterialPopEvent>,
+            event::update::<SpherePushEvent>,
+            event::update::<SpherePopEvent>,
+            event::update::<AabbPushEvent>,
+            event::update::<AabbPopEvent>,
+            event::update::<TrianglePushEvent>,
+            event::update::<TrianglePopEvent>,
         ));
 
         Self {
