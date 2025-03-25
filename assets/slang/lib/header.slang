@@ -43,9 +43,9 @@ public struct View {
     public uint frameCount;
 }
 
-public struct ScreenUniform {
-    public Camera camera;
-    public View view;
+public struct Screen {
+    public ConstantBuffer<Camera> camera;
+    public ConstantBuffer<View> view;
 }
 
 public float2 getTaaOffset(uint frame) {

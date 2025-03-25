@@ -1,9 +1,10 @@
 module object;
 
 import intersect;
+import material;
 
 public struct Objects {
-    public ConstantBuffer<ObjectCounts> counts;
+    public StructuredBuffer<Material> materials;
     public StructuredBuffer<Sphere> spheres;
     public StructuredBuffer<Aabb> aabbs;
     public StructuredBuffer<Triangle> triangles;
@@ -48,7 +49,8 @@ public struct Aabb: Hittable {
     public uint materialIndex;
 
     public Hit getHit(Ray ray) {
-
+        Hit hit;
+        return hit;
     }
 }
 
@@ -59,6 +61,7 @@ public struct Triangle: Hittable {
     public uint materialIndex;
 
     public Hit getHit(Ray ray) {
-
+        Hit hit;
+        return hit;
     }
 }
