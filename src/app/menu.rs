@@ -1,4 +1,7 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::{
+    collections::{LinkedList, VecDeque},
+    sync::Arc,
+};
 
 use bevy_ecs::{
     system::{Res, ResMut, Resource},
@@ -16,7 +19,9 @@ pub struct Menu {
     pub central_viewport_start: Option<(u32, u32)>,
     pub central_viewport_end: Option<(u32, u32)>,
 
-    pub shader_compile_error: Option<String>,
+    // use linked list because there is almost always only one element, and a Vec would require reallocating the
+    // compile error strings
+    pub shader_compile_errors: LinkedList<String>,
 
     pub settings: Settings,
 }
@@ -86,7 +91,7 @@ impl Menu {
                 });
 
             // If there was a shader compile error, display it to the screen
-            if let Some(error) = &menu.shader_compile_error {
+            for error in menu.shader_compile_errors.iter() {
                 egui::Window::new("Shader compile error").show(egui_render_state.context(), |ui| {
                     ui.label(error);
                 });

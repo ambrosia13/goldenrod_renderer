@@ -304,11 +304,16 @@ pub fn recompile_shaders(
         return;
     }
 
+    // clear the list of errors before recompiling
+    menu.shader_compile_errors.clear();
+
     for mut shader in shader_query.iter_mut() {
         shader.source.reload();
         let error = shader.recreate();
 
         // If there is an error, send it to menu so it can be displayed
-        menu.shader_compile_error = error.map(|e| e.to_string());
+        if let Some(error) = error.map(|e| e.to_string()) {
+            menu.shader_compile_errors.push_back(error);
+        }
     }
 }
