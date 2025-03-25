@@ -1,5 +1,5 @@
 use bevy_ecs::{
-    event::{Event, EventReader},
+    event::{Event, EventReader, EventWriter},
     system::{Commands, Res, ResMut, Resource},
 };
 use glam::Vec3;
@@ -31,6 +31,9 @@ pub struct TrianglePushEvent(pub Triangle);
 
 #[derive(Event)]
 pub struct TrianglePopEvent;
+
+#[derive(Event)]
+pub struct ObjectUpdateEvent;
 
 #[derive(Resource)]
 pub struct Objects {
@@ -73,6 +76,7 @@ impl Objects {
         mut aabb_pop_events: EventReader<AabbPopEvent>,
         mut triangle_push_events: EventReader<TrianglePushEvent>,
         mut triangle_pop_events: EventReader<TrianglePopEvent>,
+        mut object_update_events: EventWriter<ObjectUpdateEvent>,
     ) {
         let mut update_materials = false;
         let mut update_spheres = false;
@@ -133,6 +137,11 @@ impl Objects {
 
         if update_triangles {
             objects.triangles.update_buffer();
+        }
+
+        // signal to other systems that we updated the buffers so they need to recreate their bind groups
+        if update_materials || update_spheres || update_aabbs || update_triangles {
+            object_update_events.send(ObjectUpdateEvent);
         }
     }
 }

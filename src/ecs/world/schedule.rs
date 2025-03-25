@@ -7,8 +7,9 @@ use crate::{
     app::{
         fps, input, menu,
         object::{
-            AabbPopEvent, AabbPushEvent, MaterialPopEvent, MaterialPushEvent, SpherePopEvent,
-            SpherePushEvent, TrianglePopEvent, TrianglePushEvent,
+            self, AabbPopEvent, AabbPushEvent, MaterialPopEvent, MaterialPushEvent,
+            ObjectUpdateEvent, SpherePopEvent, SpherePushEvent, TrianglePopEvent,
+            TrianglePushEvent,
         },
         time,
     },
@@ -64,10 +65,14 @@ pub struct ScheduleRunner {
 impl Default for ScheduleRunner {
     fn default() -> Self {
         let mut init_main = Schedule::new(InitMainSchedule);
-        init_main.add_systems((fps::FpsCounter::init, menu::Menu::init));
+        init_main.add_systems((
+            fps::FpsCounter::init,
+            menu::Menu::init,
+            object::Objects::init,
+        ));
 
         let mut update_main = Schedule::new(UpdateMainSchedule);
-        update_main.add_systems(menu::Menu::update);
+        update_main.add_systems((menu::Menu::update, object::Objects::update));
 
         let mut post_update_main = Schedule::new(PostUpdateMainSchedule);
         post_update_main.add_systems((
@@ -100,6 +105,7 @@ impl Default for ScheduleRunner {
             event::init::<AabbPopEvent>,
             event::init::<TrianglePushEvent>,
             event::init::<TrianglePopEvent>,
+            event::init::<ObjectUpdateEvent>,
         ));
 
         let mut update_event = Schedule::new(UpdateEventSchedule);
@@ -114,6 +120,7 @@ impl Default for ScheduleRunner {
             event::update::<AabbPopEvent>,
             event::update::<TrianglePushEvent>,
             event::update::<TrianglePopEvent>,
+            event::update::<ObjectUpdateEvent>,
         ));
 
         Self {
