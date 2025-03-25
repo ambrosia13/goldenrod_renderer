@@ -19,6 +19,8 @@ use crate::{
 pub mod fps;
 pub mod input;
 pub mod menu;
+pub mod object;
+pub mod renderer;
 pub mod time;
 
 pub fn run() {
