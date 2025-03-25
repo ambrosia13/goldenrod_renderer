@@ -137,8 +137,8 @@ impl<T: AsStd430 + Default> BufferVec<T> {
     pub fn empty(gpu_handle: impl Into<GpuHandle>, name: &str) -> Self {
         let mut buf = Std430Bytes::new();
 
-        // Length (0)
-        buf.write(&0u32);
+        // // Length (0)
+        // buf.write(&0u32);
 
         // One garbage element since we can't have empty arrays in wgsl
         buf.write(&T::default());
@@ -159,8 +159,8 @@ impl<T: AsStd430 + Default> BufferVec<T> {
 
         let mut buf = Std430Bytes::new();
 
-        // Length
-        buf.write(&(data.len() as u32));
+        // // Length
+        // buf.write(&(data.len() as u32));
 
         // Data
         buf.write_array(data);
@@ -178,8 +178,8 @@ impl<T: AsStd430 + Default> BufferVec<T> {
     pub fn copy_from(&mut self, data: &[T]) -> bool {
         let mut buf = Std430Bytes::new();
 
-        // Length (0 if empty)
-        buf.write(&(data.len() as u32));
+        // // Length (0 if empty)
+        // buf.write(&(data.len() as u32));
 
         // If the array isnt empty, write the data. otherwise write a single garbage value
         if !data.is_empty() {
