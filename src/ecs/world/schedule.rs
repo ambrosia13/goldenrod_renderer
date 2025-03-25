@@ -5,7 +5,7 @@ use bevy_ecs::{
 
 use crate::{
     app::{
-        fps, input, menu,
+        camera, fps, input, menu,
         object::{
             self, AabbPopEvent, AabbPushEvent, MaterialPopEvent, MaterialPushEvent,
             ObjectUpdateEvent, SpherePopEvent, SpherePushEvent, TrianglePopEvent,
@@ -69,10 +69,17 @@ impl Default for ScheduleRunner {
             fps::FpsCounter::init,
             menu::Menu::init,
             object::Objects::init,
+            camera::Camera::init,
+            camera::CameraBuffer::init,
         ));
 
         let mut update_main = Schedule::new(UpdateMainSchedule);
-        update_main.add_systems((menu::Menu::update, object::Objects::update));
+        update_main.add_systems((
+            menu::Menu::update,
+            object::Objects::update,
+            camera::Camera::update,
+            camera::CameraBuffer::update,
+        ));
 
         let mut post_update_main = Schedule::new(PostUpdateMainSchedule);
         post_update_main.add_systems((

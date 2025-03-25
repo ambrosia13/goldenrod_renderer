@@ -204,8 +204,8 @@ pub fn update_screen_size_textures(
         return;
     }
 
-    let new_width = menu.central_viewport_end.unwrap().0 - menu.central_viewport_start.unwrap().0;
-    let new_height = menu.central_viewport_end.unwrap().1 - menu.central_viewport_start.unwrap().1;
+    let new_width = menu.central_viewport_end.0 - menu.central_viewport_start.0;
+    let new_height = menu.central_viewport_end.1 - menu.central_viewport_start.1;
 
     for mut texture in texture_query.iter_mut() {
         texture.desc.size.width = new_width;

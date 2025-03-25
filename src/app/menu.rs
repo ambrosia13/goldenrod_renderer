@@ -10,14 +10,14 @@ use bevy_ecs::{
 use glam::Vec3;
 use winit::{keyboard::KeyCode, window::Window};
 
-use crate::{ecs::Wrapper, egui::EguiRenderState};
+use crate::{ecs::Wrapper, egui::EguiRenderState, render::RenderState};
 
 use super::{fps::FpsCounter, input::Input};
 
 #[derive(Resource, Default)]
 pub struct Menu {
-    pub central_viewport_start: Option<(u32, u32)>,
-    pub central_viewport_end: Option<(u32, u32)>,
+    pub central_viewport_start: (u32, u32),
+    pub central_viewport_end: (u32, u32),
 
     // use linked list because there is almost always only one element, and a Vec would require reallocating the
     // compile error strings
@@ -28,7 +28,14 @@ pub struct Menu {
 
 impl Menu {
     pub fn init(world: &mut World) {
-        world.insert_resource(Menu::default());
+        let render_state = world.resource::<RenderState>();
+
+        let mut menu = Menu::default();
+
+        menu.central_viewport_start = (0, 0);
+        menu.central_viewport_end = (render_state.size.width, render_state.size.height);
+
+        world.insert_resource(menu);
     }
 
     pub fn update(
@@ -101,11 +108,11 @@ impl Menu {
         let window_size = window.inner_size();
 
         // Calculate the bounds of the central panel, so our renderer knows how big the texture we draw to should be
-        menu.central_viewport_start = Some((central_panel_offset_from_left as u32, 0));
-        menu.central_viewport_end = Some((
+        menu.central_viewport_start = (central_panel_offset_from_left as u32, 0);
+        menu.central_viewport_end = (
             window_size.width - central_panel_offset_from_right as u32,
             window_size.height,
-        ));
+        );
     }
 }
 

@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
 use bevy_ecs::world::World;
+use camera::Camera;
+use glam::DVec2;
 use input::Input;
 use time::Time;
 use winit::{
     application::ApplicationHandler,
-    event::WindowEvent,
+    event::{DeviceEvent, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop},
     window::{Window, WindowAttributes},
 };
@@ -16,6 +18,7 @@ use crate::{
     render::{FrameData, RenderState, WindowResizeEvent},
 };
 
+pub mod camera;
 pub mod fps;
 pub mod input;
 pub mod menu;
@@ -95,6 +98,34 @@ impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.state.is_uninit() {
             self.state = AppState::init(event_loop);
+        }
+    }
+
+    fn device_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        device_id: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
+    ) {
+        let AppState::Init {
+            window,
+            world,
+            schedule_runner,
+        } = &mut self.state
+        else {
+            return;
+        };
+
+        if let DeviceEvent::MouseMotion {
+            delta: (delta_x, delta_y),
+        } = event
+        {
+            let mut input = world.resource_mut::<Input>();
+            input.set_mouse_delta(delta_x, delta_y);
+            let delta = DVec2::new(delta_x, delta_y);
+
+            let mut camera = world.resource_mut::<Camera>();
+            camera.update_rotation(delta, 0.1);
         }
     }
 
