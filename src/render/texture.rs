@@ -10,7 +10,7 @@ use bevy_ecs::{
 
 use crate::app::menu::Menu;
 
-use super::{GpuHandle, WindowResizeEvent};
+use super::{binding::BindingEntry, GpuHandle, WindowResizeEvent, WGPU_FEATURES};
 
 #[derive(Debug, Clone, Copy)]
 pub enum TextureType {
@@ -187,6 +187,38 @@ impl Texture {
 
     pub fn recreate(&mut self) {
         self.inner = self.gpu_handle.device.create_texture(&self.desc.to_wgpu());
+    }
+
+    pub fn bind_view<'a>(&self, view: &'a wgpu::TextureView) -> BindingEntry<'a> {
+        BindingEntry {
+            binding_type: wgpu::BindingType::Texture {
+                sample_type: self
+                    .inner
+                    .format()
+                    .sample_type(None, Some(WGPU_FEATURES))
+                    .unwrap(),
+                view_dimension: self.ty.view_dimension(),
+                multisampled: false,
+            },
+            count: None,
+            resource: wgpu::BindingResource::TextureView(view),
+        }
+    }
+
+    pub fn bind_storage<'a>(
+        &self,
+        view: &'a wgpu::TextureView,
+        access: wgpu::StorageTextureAccess,
+    ) -> BindingEntry<'a> {
+        BindingEntry {
+            binding_type: wgpu::BindingType::StorageTexture {
+                access,
+                format: self.desc.format,
+                view_dimension: self.ty.view_dimension(),
+            },
+            count: None,
+            resource: wgpu::BindingResource::TextureView(view),
+        }
     }
 }
 

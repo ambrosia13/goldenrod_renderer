@@ -4,15 +4,20 @@ use std::{
 };
 
 use bevy_ecs::{
+    event::EventWriter,
     system::{Res, ResMut, Resource},
     world::World,
 };
 use glam::Vec3;
 use winit::{keyboard::KeyCode, window::Window};
 
-use crate::{ecs::Wrapper, egui::EguiRenderState, render::RenderState};
+use crate::{
+    ecs::Wrapper,
+    egui::EguiRenderState,
+    render::{RenderState, WindowResizeEvent},
+};
 
-use super::{fps::FpsCounter, input::Input};
+use super::{fps::FpsCounter, input::Input, renderer::profiler::RenderProfiler};
 
 #[derive(Resource, Default)]
 pub struct Menu {
@@ -38,12 +43,16 @@ impl Menu {
         world.insert_resource(menu);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn update(
         mut menu: ResMut<Menu>,
+        mut render_state: ResMut<RenderState>,
         egui_render_state: Res<EguiRenderState>,
         window: Res<Wrapper<Arc<Window>>>,
         input: Res<Input>,
         fps_counter: Res<FpsCounter>,
+        profiler: Res<RenderProfiler>,
+        mut resize_events: EventWriter<WindowResizeEvent>,
     ) {
         let pixels_per_point = egui_render_state.context().pixels_per_point();
 
@@ -92,6 +101,10 @@ impl Menu {
 
                     ui.label(format!("FPS: {:.1}", fps_counter.average_fps()));
 
+                    for (name, time) in profiler.times.iter() {
+                        ui.label(format!("{}: {:.3} ms", name, time.as_secs_f64() * 1000.0));
+                    }
+
                     ui.separator();
 
                     ui.heading("Camera");
@@ -108,11 +121,21 @@ impl Menu {
         let window_size = window.inner_size();
 
         // Calculate the bounds of the central panel, so our renderer knows how big the texture we draw to should be
-        menu.central_viewport_start = (central_panel_offset_from_left as u32, 0);
-        menu.central_viewport_end = (
+        let effective_viewport_start = (central_panel_offset_from_left as u32, 0);
+        let effective_viewport_end = (
             window_size.width - central_panel_offset_from_right as u32,
             window_size.height,
         );
+
+        // if it's changed, send a resize event
+        if render_state.effective_viewport_start != effective_viewport_start
+            || render_state.effective_viewport_end != effective_viewport_end
+        {
+            resize_events.send(WindowResizeEvent);
+        }
+
+        render_state.effective_viewport_start = effective_viewport_start;
+        render_state.effective_viewport_end = effective_viewport_end;
     }
 }
 

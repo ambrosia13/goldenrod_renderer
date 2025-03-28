@@ -1,19 +1,303 @@
-// use bevy_ecs::system::Resource;
+use bevy_ecs::{
+    event::EventReader,
+    system::{Commands, Res, ResMut, Resource},
+};
+use glam::UVec3;
 
-// use crate::render::{binding::Binding, shader::Shader, texture::Texture, GpuHandle};
+use crate::{
+    app::{
+        camera::{CameraBuffer, ViewBuffer},
+        object::{ObjectUpdateEvent, Objects},
+    },
+    render::{
+        binding::Binding,
+        shader::{Shader, ShaderRecompileEvent, ShaderSource},
+        texture::{Texture, TextureType},
+        FrameData, GpuHandle, RenderState, WindowResizeEvent,
+    },
+};
 
-// #[derive(Resource)]
-// pub struct PathTracer {
-//     pub camera_binding: Binding,
-//     pub objects_binding: Binding,
+use super::profiler::RenderProfiler;
 
-//     pub color_texture: Texture,
+#[derive(Resource)]
+pub struct PathTracer {
+    pub color_texture: Texture,
+    pub previous_color_texture: Texture,
 
-//     pub shader: Shader,
-// }
+    screen_binding: Binding,
+    objects_binding: Binding,
+    texture_binding: Binding,
 
-// impl PathTracer {
-//     fn new(gpu_handle: GpuHandle) -> Self {}
+    shader: Shader,
+    pipeline_layout: wgpu::PipelineLayout,
+    pipeline: wgpu::ComputePipeline,
 
-//     fn draw(&self) {}
-// }
+    time_query_index: usize,
+
+    gpu_handle: GpuHandle,
+}
+
+impl PathTracer {
+    fn new(
+        render_state: &RenderState,
+        camera_buffer: &CameraBuffer,
+        view_buffer: &ViewBuffer,
+        objects: &Objects,
+        profiler: &mut RenderProfiler,
+    ) -> Self {
+        let gpu_handle = render_state.gpu_handle.clone();
+
+        let (color_texture, previous_color_texture) = Self::create_textures(render_state);
+
+        let screen_binding =
+            Self::create_screen_binding(gpu_handle.clone(), camera_buffer, view_buffer);
+
+        let objects_binding = Self::create_objects_binding(gpu_handle.clone(), objects);
+
+        let texture_binding = Self::create_texture_binding(
+            gpu_handle.clone(),
+            &color_texture,
+            &previous_color_texture,
+        );
+
+        let pipeline_layout =
+            gpu_handle
+                .device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("Path Tracer Pipeline Layout"),
+                    bind_group_layouts: &[
+                        screen_binding.bind_group_layout(),
+                        objects_binding.bind_group_layout(),
+                        texture_binding.bind_group_layout(),
+                    ],
+                    push_constant_ranges: &[],
+                });
+
+        let (shader, pipeline) =
+            Self::create_shader_and_pipeline(gpu_handle.clone(), &pipeline_layout);
+
+        let time_query_index = profiler.push(&gpu_handle, "Path trace");
+
+        Self {
+            color_texture,
+            previous_color_texture,
+            screen_binding,
+            objects_binding,
+            texture_binding,
+            shader,
+            pipeline_layout,
+            pipeline,
+            time_query_index,
+            gpu_handle,
+        }
+    }
+
+    fn draw(&self, encoder: &mut wgpu::CommandEncoder, profiler: &mut RenderProfiler) {
+        let (_, time_query) = &mut profiler.time_queries[self.time_query_index];
+
+        time_query.write_start_timestamp(encoder);
+
+        // Copy current texture to previous texture
+        encoder.copy_texture_to_texture(
+            self.color_texture.inner().as_image_copy(),
+            self.previous_color_texture.inner().as_image_copy(),
+            self.color_texture.inner().size(),
+        );
+
+        let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: Some("Path Tracer Compute Pass"),
+            timestamp_writes: None,
+        });
+
+        compute_pass.set_bind_group(0, self.screen_binding.bind_group(), &[]);
+        compute_pass.set_bind_group(1, self.objects_binding.bind_group(), &[]);
+        compute_pass.set_bind_group(2, self.texture_binding.bind_group(), &[]);
+
+        compute_pass.set_pipeline(&self.pipeline);
+
+        let workgroup_sizes = UVec3::new(8, 8, 1);
+        let dimensions = UVec3::new(
+            self.color_texture.inner().width(),
+            self.color_texture.inner().height(),
+            1,
+        );
+
+        let mut workgroups = dimensions / workgroup_sizes;
+
+        // Add an extra workgroup in each dimension if the number we calculated doesn't cover the whole dimensions
+        workgroups += (dimensions % workgroups) & UVec3::ONE;
+
+        compute_pass.dispatch_workgroups(workgroups.x, workgroups.y, workgroups.z);
+        drop(compute_pass);
+
+        time_query.write_end_timestamp(encoder);
+    }
+
+    fn create_screen_binding(
+        gpu_handle: GpuHandle,
+        camera_buffer: &CameraBuffer,
+        view_buffer: &ViewBuffer,
+    ) -> Binding {
+        Binding::new(
+            gpu_handle,
+            &[
+                camera_buffer.buffer.bind_uniform(0, None, false),
+                view_buffer.buffer.bind_uniform(0, None, false),
+            ],
+        )
+    }
+
+    fn create_objects_binding(gpu_handle: GpuHandle, objects: &Objects) -> Binding {
+        Binding::new(
+            gpu_handle,
+            &[
+                objects.materials.buffer.bind(true),
+                objects.spheres.buffer.bind(true),
+                objects.aabbs.buffer.bind(true),
+                objects.triangles.buffer.bind(true),
+            ],
+        )
+    }
+
+    fn create_textures(render_state: &RenderState) -> (Texture, Texture) {
+        let texture_format = wgpu::TextureFormat::Rgba32Float;
+
+        let color_texture = Texture::new(
+            render_state.gpu_handle.clone(),
+            "Path Tracer Color Texture".into(),
+            (
+                render_state.get_effective_width() as usize,
+                render_state.get_effective_height() as usize,
+                1,
+            ),
+            1,
+            texture_format,
+            wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
+            TextureType::Texture2d,
+        );
+
+        let previous_color_texture = Texture::new(
+            render_state.gpu_handle.clone(),
+            "Path Tracer Previous Color Texture".into(),
+            (
+                (render_state.effective_viewport_end.0 - render_state.effective_viewport_start.0)
+                    as usize,
+                (render_state.effective_viewport_end.1 - render_state.effective_viewport_start.1)
+                    as usize,
+                1,
+            ),
+            1,
+            texture_format,
+            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            TextureType::Texture2d,
+        );
+
+        (color_texture, previous_color_texture)
+    }
+
+    fn create_texture_binding(
+        gpu_handle: GpuHandle,
+        color_texture: &Texture,
+        previous_color_texture: &Texture,
+    ) -> Binding {
+        Binding::new(
+            gpu_handle,
+            &[
+                color_texture.bind_storage(
+                    &color_texture.view(0..1, 0..1),
+                    wgpu::StorageTextureAccess::WriteOnly,
+                ),
+                previous_color_texture.bind_view(&previous_color_texture.view(0..1, 0..1)),
+            ],
+        )
+    }
+
+    fn create_shader_and_pipeline(
+        gpu_handle: GpuHandle,
+        pipeline_layout: &wgpu::PipelineLayout,
+    ) -> (Shader, wgpu::ComputePipeline) {
+        let shader = Shader::new(
+            gpu_handle.clone(),
+            ShaderSource::load_spirv("assets/shaders/pathtrace_compute.spv"),
+        );
+
+        let pipeline =
+            gpu_handle
+                .device
+                .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                    label: Some("Path Tracer Compute Pipeline"),
+                    layout: Some(pipeline_layout),
+                    module: shader.module(),
+                    entry_point: Some("compute"),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    cache: None,
+                });
+
+        (shader, pipeline)
+    }
+
+    pub fn init(
+        mut commands: Commands,
+        render_state: Res<RenderState>,
+        camera_buffer: Res<CameraBuffer>,
+        view_buffer: Res<ViewBuffer>,
+        objects: Res<Objects>,
+        mut profiler: ResMut<RenderProfiler>,
+    ) {
+        let path_tracer = PathTracer::new(
+            &render_state,
+            &camera_buffer,
+            &view_buffer,
+            &objects,
+            &mut profiler,
+        );
+
+        commands.insert_resource(path_tracer);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn update(
+        mut path_tracer: ResMut<PathTracer>,
+        render_state: Res<RenderState>,
+        objects: Res<Objects>,
+        mut profiler: ResMut<RenderProfiler>,
+
+        mut frame: ResMut<FrameData>,
+
+        mut resize_events: EventReader<WindowResizeEvent>,
+        mut object_update_events: EventReader<ObjectUpdateEvent>,
+        mut shader_recompile_events: EventReader<ShaderRecompileEvent>,
+    ) {
+        if resize_events.read().count() > 0 {
+            let (color_texture, previous_color_texture) = Self::create_textures(&render_state);
+            let texture_binding = Self::create_texture_binding(
+                render_state.gpu_handle.clone(),
+                &color_texture,
+                &previous_color_texture,
+            );
+
+            path_tracer.color_texture = color_texture;
+            path_tracer.previous_color_texture = previous_color_texture;
+            path_tracer.texture_binding = texture_binding;
+        }
+
+        if object_update_events.read().count() > 0 {
+            let objects_binding =
+                Self::create_objects_binding(render_state.gpu_handle.clone(), &objects);
+
+            path_tracer.objects_binding = objects_binding;
+        }
+
+        if shader_recompile_events.read().count() > 0 {
+            let (shader, pipeline) = Self::create_shader_and_pipeline(
+                render_state.gpu_handle.clone(),
+                &path_tracer.pipeline_layout,
+            );
+
+            path_tracer.shader = shader;
+            path_tracer.pipeline = pipeline;
+        }
+
+        path_tracer.draw(&mut frame.encoder, &mut profiler);
+    }
+}

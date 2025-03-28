@@ -7,6 +7,7 @@ pub mod binding;
 pub mod buffer;
 pub mod shader;
 pub mod texture;
+pub mod timestamp;
 pub mod vertex;
 
 pub const WGPU_FEATURES: wgpu::Features = wgpu::Features::FLOAT32_FILTERABLE
@@ -15,7 +16,11 @@ pub const WGPU_FEATURES: wgpu::Features = wgpu::Features::FLOAT32_FILTERABLE
     .union(wgpu::Features::PUSH_CONSTANTS)
     .union(wgpu::Features::ADDRESS_MODE_CLAMP_TO_BORDER)
     .union(wgpu::Features::ADDRESS_MODE_CLAMP_TO_ZERO)
-    .union(wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES);
+    .union(wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES)
+    .union(wgpu::Features::TIMESTAMP_QUERY)
+    .union(wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS)
+    .union(wgpu::Features::VERTEX_WRITABLE_STORAGE)
+    .union(wgpu::Features::SPIRV_SHADER_PASSTHROUGH);
 
 #[derive(Clone)]
 pub struct GpuHandle {
@@ -36,6 +41,9 @@ pub struct RenderState {
     pub surface: wgpu::Surface<'static>,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
+    pub effective_viewport_start: (u32, u32), // effective size considering panel UI
+    pub effective_viewport_end: (u32, u32),   // effective size considering panel UI
+
     pub window: Arc<Window>,
 
     pub gpu_handle: GpuHandle,
@@ -108,6 +116,8 @@ impl RenderState {
             surface,
             config,
             size,
+            effective_viewport_start: (0, 0),
+            effective_viewport_end: (size.width, size.height),
             window,
             gpu_handle: GpuHandle {
                 instance,
@@ -154,6 +164,14 @@ impl RenderState {
             .submit(std::iter::once(frame.encoder.finish()));
         frame.surface_texture.present();
     }
+
+    pub fn get_effective_width(&self) -> u32 {
+        self.effective_viewport_end.0 - self.effective_viewport_start.0
+    }
+
+    pub fn get_effective_height(&self) -> u32 {
+        self.effective_viewport_end.1 - self.effective_viewport_start.1
+    }
 }
 
 #[derive(Resource)]
@@ -163,4 +181,4 @@ pub struct FrameData {
 }
 
 #[derive(Event)]
-pub struct WindowResizeEvent(pub PhysicalSize<u32>);
+pub struct WindowResizeEvent;

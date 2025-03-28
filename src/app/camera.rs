@@ -1,9 +1,10 @@
 use bevy_ecs::system::{Commands, Res, ResMut, Resource};
 use glam::{DVec2, Mat3, Mat4, Quat, Vec3};
+use gpu_bytes::AsStd140;
 use gpu_bytes_derive::{AsStd140, AsStd430};
 use winit::{dpi::PhysicalSize, keyboard::KeyCode};
 
-use crate::render::RenderState;
+use crate::render::{buffer::Buffer, RenderState};
 
 use super::{input::Input, time::Time};
 
@@ -172,8 +173,35 @@ impl Camera {
     }
 }
 
-#[derive(Resource, AsStd140, AsStd430, Default)]
+#[derive(Resource)]
 pub struct CameraBuffer {
+    pub data: CameraUniform,
+    pub buffer: Buffer,
+}
+
+impl CameraBuffer {
+    pub fn init(mut commands: Commands, render_state: Res<RenderState>) {
+        let data = CameraUniform::default();
+
+        commands.insert_resource(CameraBuffer {
+            buffer: Buffer::with_data(
+                &render_state.gpu_handle,
+                "Camera Buffer",
+                data.as_std140().as_slice(),
+                wgpu::BufferUsages::UNIFORM,
+            ),
+            data: CameraUniform::default(),
+        });
+    }
+
+    pub fn update(mut buffer: ResMut<CameraBuffer>, camera: Res<Camera>) {
+        buffer.data.update_from(&camera);
+        buffer.buffer.write(buffer.data.as_std140().as_slice(), 0);
+    }
+}
+
+#[derive(AsStd140, AsStd430, Default)]
+pub struct CameraUniform {
     view_projection_matrix: Mat4,
     view_matrix: Mat4,
     projection_matrix: Mat4,
@@ -196,7 +224,7 @@ pub struct CameraBuffer {
     up: Vec3,
 }
 
-impl CameraBuffer {
+impl CameraUniform {
     fn update_from(&mut self, camera: &Camera) {
         self.previous_projection_matrix = self.view_projection_matrix;
         self.previous_view_matrix = self.view_matrix;
@@ -219,12 +247,46 @@ impl CameraBuffer {
         self.right = camera.right();
         self.up = camera.up();
     }
+}
 
-    pub fn init(mut commands: Commands) {
-        commands.insert_resource(CameraBuffer::default());
+#[derive(Resource)]
+pub struct ViewBuffer {
+    pub data: ViewUniform,
+    pub buffer: Buffer,
+}
+
+impl ViewBuffer {
+    pub fn init(mut commands: Commands, render_state: Res<RenderState>) {
+        let data = ViewUniform::default();
+
+        commands.insert_resource(ViewBuffer {
+            buffer: Buffer::with_data(
+                &render_state.gpu_handle,
+                "View Buffer",
+                data.as_std140().as_slice(),
+                wgpu::BufferUsages::UNIFORM,
+            ),
+            data: ViewUniform::default(),
+        });
     }
 
-    pub fn update(mut buffer: ResMut<CameraBuffer>, camera: Res<Camera>) {
-        buffer.update_from(&camera);
+    pub fn update(mut buffer: ResMut<ViewBuffer>, render_state: Res<RenderState>) {
+        buffer.data.update_from(&render_state);
+        buffer.buffer.write(buffer.data.as_std140().as_slice(), 0);
+    }
+}
+
+#[derive(AsStd140, AsStd430, Default)]
+pub struct ViewUniform {
+    width: u32,
+    height: u32,
+    frame_count: u32,
+}
+
+impl ViewUniform {
+    fn update_from(&mut self, render_state: &RenderState) {
+        self.width = render_state.size.width;
+        self.height = render_state.size.height;
+        self.frame_count = self.frame_count.wrapping_add(1);
     }
 }

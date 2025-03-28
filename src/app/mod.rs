@@ -4,6 +4,7 @@ use bevy_ecs::world::World;
 use camera::Camera;
 use glam::DVec2;
 use input::Input;
+use renderer::profiler;
 use time::Time;
 use winit::{
     application::ApplicationHandler,
@@ -15,7 +16,7 @@ use winit::{
 use crate::{
     ecs::{world::schedule::ScheduleRunner, Wrapper},
     egui::EguiRenderState,
-    render::{FrameData, RenderState, WindowResizeEvent},
+    render::{timestamp::TimeQuery, FrameData, RenderState, WindowResizeEvent},
 };
 
 pub mod camera;
@@ -171,7 +172,7 @@ impl ApplicationHandler for App {
                 let mut render_state = world.resource_mut::<RenderState>();
                 render_state.resize(size);
 
-                world.send_event(WindowResizeEvent(size));
+                world.send_event(WindowResizeEvent);
             }
             WindowEvent::RedrawRequested => {
                 // We want another frame after this one
@@ -233,6 +234,9 @@ impl ApplicationHandler for App {
 
                 let render_state = world.resource_mut::<RenderState>();
                 render_state.finish_frame(frame);
+
+                // Read the timestamps now that the encoder has been submitted
+                profiler::RenderProfiler::post_render(world);
             }
             _ => {}
         }

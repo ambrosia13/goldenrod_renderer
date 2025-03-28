@@ -28,7 +28,7 @@ impl Buffer {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some(name),
                 contents: data,
-                usage,
+                usage: usage | wgpu::BufferUsages::COPY_DST,
             });
 
         Self {
@@ -49,7 +49,7 @@ impl Buffer {
         let buffer = gpu_handle.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(name),
             size: size as u64,
-            usage,
+            usage: usage | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 

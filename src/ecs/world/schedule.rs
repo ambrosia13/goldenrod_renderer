@@ -11,7 +11,7 @@ use crate::{
             ObjectUpdateEvent, SpherePopEvent, SpherePushEvent, TrianglePopEvent,
             TrianglePushEvent,
         },
-        time,
+        renderer, time,
     },
     ecs::event,
     render::{
@@ -71,6 +71,7 @@ impl Default for ScheduleRunner {
             object::Objects::init,
             camera::Camera::init,
             camera::CameraBuffer::init,
+            camera::ViewBuffer::init,
         ));
 
         let mut update_main = Schedule::new(UpdateMainSchedule);
@@ -79,6 +80,7 @@ impl Default for ScheduleRunner {
             object::Objects::update,
             camera::Camera::update,
             camera::CameraBuffer::update,
+            camera::ViewBuffer::update,
         ));
 
         let mut post_update_main = Schedule::new(PostUpdateMainSchedule);
@@ -88,7 +90,12 @@ impl Default for ScheduleRunner {
             (fps::FpsCounter::update, time::update_system).chain(),
         ));
 
-        let init_render = Schedule::new(InitRenderSchedule);
+        let mut init_render = Schedule::new(InitRenderSchedule);
+        init_render.add_systems(((
+            renderer::profiler::RenderProfiler::init,
+            renderer::pathtrace::PathTracer::init,
+        )
+            .chain(),));
 
         let mut pre_update_render = Schedule::new(PreUpdateRenderSchedule);
         pre_update_render.add_systems((
@@ -96,7 +103,8 @@ impl Default for ScheduleRunner {
             texture::update_screen_size_textures,
         ));
 
-        let update_render = Schedule::new(UpdateRenderSchedule);
+        let mut update_render = Schedule::new(UpdateRenderSchedule);
+        update_render.add_systems(renderer::pathtrace::PathTracer::update);
 
         let post_update_render = Schedule::new(PostUpdateRenderSchedule);
 
@@ -148,18 +156,18 @@ impl ScheduleRunner {
     pub fn add_observers(world: &mut World) {}
 
     pub fn startup(&mut self, world: &mut World) {
-        self.init_render.run(world);
         self.init_main.run(world);
+        self.init_render.run(world);
         self.init_event.run(world);
     }
 
     pub fn update(&mut self, world: &mut World) {
-        self.pre_update_render.run(world);
-        self.update_render.run(world);
-        self.post_update_render.run(world);
-
         self.update_main.run(world);
         self.post_update_main.run(world);
         self.update_event.run(world);
+
+        self.pre_update_render.run(world);
+        self.update_render.run(world);
+        self.post_update_render.run(world);
     }
 }
