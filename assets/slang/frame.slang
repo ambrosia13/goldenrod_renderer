@@ -27,4 +27,6 @@ VertexOutput vertex(uint vertexIndex: SV_VertexID) {
     output.clipPosition = float4(vertex.position.xy, 0.0, 1.0);
     output.uv = vertex.uv;
     output.texcoord = vertex.texcoord;
+
+    return output;
 }

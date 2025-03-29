@@ -237,6 +237,9 @@ impl ApplicationHandler for App {
 
                 // Read the timestamps now that the encoder has been submitted
                 profiler::RenderProfiler::post_render(world);
+
+                // Update fps counter so we can get an accurate reading
+                fps::FpsCounter::update(world);
             }
             _ => {}
         }

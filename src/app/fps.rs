@@ -38,8 +38,11 @@ impl FpsCounter {
         world.insert_resource(FpsCounter::default());
     }
 
-    pub fn update(mut fps_counter: ResMut<FpsCounter>, time: Res<Time>) {
+    pub fn update(world: &mut World) {
+        let time = world.resource::<Time>();
         let delta = time.delta();
+
+        let mut fps_counter = world.resource_mut::<FpsCounter>();
         fps_counter.push(delta);
     }
 }

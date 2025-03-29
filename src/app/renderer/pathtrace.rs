@@ -20,7 +20,7 @@ use crate::{
 use super::profiler::RenderProfiler;
 
 #[derive(Resource)]
-pub struct PathTracer {
+pub struct PathtracePass {
     pub color_texture: Texture,
     pub previous_color_texture: Texture,
 
@@ -34,10 +34,10 @@ pub struct PathTracer {
 
     time_query_index: usize,
 
-    gpu_handle: GpuHandle,
+    _gpu_handle: GpuHandle,
 }
 
-impl PathTracer {
+impl PathtracePass {
     fn new(
         render_state: &RenderState,
         camera_buffer: &CameraBuffer,
@@ -64,7 +64,7 @@ impl PathTracer {
             gpu_handle
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Path Tracer Pipeline Layout"),
+                    label: Some("pathtrace_pipeline_layout"),
                     bind_group_layouts: &[
                         screen_binding.bind_group_layout(),
                         objects_binding.bind_group_layout(),
@@ -76,7 +76,7 @@ impl PathTracer {
         let (shader, pipeline) =
             Self::create_shader_and_pipeline(gpu_handle.clone(), &pipeline_layout);
 
-        let time_query_index = profiler.push(&gpu_handle, "Path trace");
+        let time_query_index = profiler.push(&gpu_handle, "pathtrace");
 
         Self {
             color_texture,
@@ -88,7 +88,7 @@ impl PathTracer {
             pipeline_layout,
             pipeline,
             time_query_index,
-            gpu_handle,
+            _gpu_handle: gpu_handle,
         }
     }
 
@@ -105,7 +105,7 @@ impl PathTracer {
         );
 
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label: Some("Path Tracer Compute Pass"),
+            label: Some("pathtrace_compute_pass"),
             timestamp_writes: None,
         });
 
@@ -164,7 +164,7 @@ impl PathTracer {
 
         let color_texture = Texture::new(
             render_state.gpu_handle.clone(),
-            "Path Tracer Color Texture".into(),
+            "pathtrace_color_texture".into(),
             (
                 render_state.get_effective_width() as usize,
                 render_state.get_effective_height() as usize,
@@ -172,13 +172,15 @@ impl PathTracer {
             ),
             1,
             texture_format,
-            wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
+            wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
             TextureType::Texture2d,
         );
 
         let previous_color_texture = Texture::new(
             render_state.gpu_handle.clone(),
-            "Path Tracer Previous Color Texture".into(),
+            "pathtrace_previous_color_texture".into(),
             (
                 (render_state.effective_viewport_end.0 - render_state.effective_viewport_start.0)
                     as usize,
@@ -205,7 +207,7 @@ impl PathTracer {
             &[
                 color_texture.bind_storage(
                     &color_texture.view(0..1, 0..1),
-                    wgpu::StorageTextureAccess::WriteOnly,
+                    wgpu::StorageTextureAccess::ReadWrite,
                 ),
                 previous_color_texture.bind_view(&previous_color_texture.view(0..1, 0..1)),
             ],
@@ -218,14 +220,14 @@ impl PathTracer {
     ) -> (Shader, wgpu::ComputePipeline) {
         let shader = Shader::new(
             gpu_handle.clone(),
-            ShaderSource::load_spirv("assets/shaders/pathtrace_compute.spv"),
+            ShaderSource::load_wgsl("assets/shaders/pathtrace.wgsl"),
         );
 
         let pipeline =
             gpu_handle
                 .device
                 .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                    label: Some("Path Tracer Compute Pipeline"),
+                    label: Some("pathtrace_compute_pipeline"),
                     layout: Some(pipeline_layout),
                     module: shader.module(),
                     entry_point: Some("compute"),
@@ -244,7 +246,7 @@ impl PathTracer {
         objects: Res<Objects>,
         mut profiler: ResMut<RenderProfiler>,
     ) {
-        let path_tracer = PathTracer::new(
+        let path_tracer = PathtracePass::new(
             &render_state,
             &camera_buffer,
             &view_buffer,
@@ -257,7 +259,7 @@ impl PathTracer {
 
     #[allow(clippy::too_many_arguments)]
     pub fn update(
-        mut path_tracer: ResMut<PathTracer>,
+        mut path_tracer: ResMut<PathtracePass>,
         render_state: Res<RenderState>,
         objects: Res<Objects>,
         mut profiler: ResMut<RenderProfiler>,

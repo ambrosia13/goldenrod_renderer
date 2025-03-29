@@ -35,10 +35,11 @@ impl Menu {
     pub fn init(world: &mut World) {
         let render_state = world.resource::<RenderState>();
 
-        let mut menu = Menu::default();
-
-        menu.central_viewport_start = (0, 0);
-        menu.central_viewport_end = (render_state.size.width, render_state.size.height);
+        let menu = Menu {
+            central_viewport_start: (0, 0),
+            central_viewport_end: (render_state.size.width, render_state.size.height),
+            ..Default::default()
+        };
 
         world.insert_resource(menu);
     }

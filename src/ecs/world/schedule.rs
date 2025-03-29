@@ -87,24 +87,33 @@ impl Default for ScheduleRunner {
         post_update_main.add_systems((
             input::update_system,
             // Updating the fps counter comes before the time so we can get the most accurate time before the frame ends
-            (fps::FpsCounter::update, time::update_system).chain(),
+            (time::update_system).chain(),
         ));
 
         let mut init_render = Schedule::new(InitRenderSchedule);
-        init_render.add_systems(((
-            renderer::profiler::RenderProfiler::init,
-            renderer::pathtrace::PathTracer::init,
-        )
-            .chain(),));
+        init_render.add_systems(
+            (
+                renderer::profiler::RenderProfiler::init,
+                renderer::pathtrace::PathtracePass::init,
+                renderer::final_pass::FinalPass::init,
+            )
+                .chain(),
+        );
 
         let mut pre_update_render = Schedule::new(PreUpdateRenderSchedule);
         pre_update_render.add_systems((
             shader::recompile_shaders,
-            texture::update_screen_size_textures,
+            //texture::update_screen_size_textures,
         ));
 
         let mut update_render = Schedule::new(UpdateRenderSchedule);
-        update_render.add_systems(renderer::pathtrace::PathTracer::update);
+        update_render.add_systems(
+            (
+                renderer::pathtrace::PathtracePass::update,
+                renderer::final_pass::FinalPass::update,
+            )
+                .chain(),
+        );
 
         let post_update_render = Schedule::new(PostUpdateRenderSchedule);
 

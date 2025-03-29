@@ -172,6 +172,13 @@ impl RenderState {
     pub fn get_effective_height(&self) -> u32 {
         self.effective_viewport_end.1 - self.effective_viewport_start.1
     }
+
+    pub fn get_effective_size(&self) -> PhysicalSize<u32> {
+        PhysicalSize {
+            width: self.get_effective_width(),
+            height: self.get_effective_height(),
+        }
+    }
 }
 
 #[derive(Resource)]

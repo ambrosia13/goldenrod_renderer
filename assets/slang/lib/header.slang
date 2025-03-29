@@ -6,11 +6,11 @@ public static const float TAU = 6.2831853071795864769252867665590;
 
 public static const float E = 2.718281828459045235360287471352;
 
-public struct VertexOutput {
+public struct VertexOutput {    
     public float4 clipPosition: SV_Position;
 
     public float2 uv;
-    public float2 texcoord;
+    public float2 texcoord;    
 }
 
 public struct Camera {
@@ -39,6 +39,7 @@ public struct Camera {
 public struct View {
     public uint width;
     public uint height;
+    public float aspectRatio;
 
     public uint frameCount;
 }

@@ -34,5 +34,6 @@ fn vertex(@builtin(vertex_index) vertexIndex_0 : u32) -> VertexOutput_0
     output_0.clipPosition_0 = vec4<f32>(vertices_0[indices_0[vertexIndex_0]].position_0.xy, 0.0f, 1.0f);
     output_0.uv_2 = vertices_0[indices_0[vertexIndex_0]].uv_0;
     output_0.texcoord_2 = vertices_0[indices_0[vertexIndex_0]].texcoord_0;
+    return output_0;
 }
 

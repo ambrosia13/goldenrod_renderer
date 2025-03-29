@@ -1,10 +1,13 @@
-use bevy_ecs::system::{Commands, Res, ResMut, Resource};
+use bevy_ecs::{
+    event::EventReader,
+    system::{Commands, Res, ResMut, Resource},
+};
 use glam::{DVec2, Mat3, Mat4, Quat, Vec3};
 use gpu_bytes::AsStd140;
 use gpu_bytes_derive::{AsStd140, AsStd430};
 use winit::{dpi::PhysicalSize, keyboard::KeyCode};
 
-use crate::render::{buffer::Buffer, RenderState};
+use crate::render::{buffer::Buffer, RenderState, WindowResizeEvent};
 
 use super::{input::Input, time::Time};
 
@@ -161,15 +164,25 @@ impl Camera {
             Vec3::ZERO,
             Vec3::Z,
             45.0,
-            render_state.size,
+            render_state.get_effective_size(),
             1.0,
             100.0,
             10.0,
         ));
     }
 
-    pub fn update(mut camera: ResMut<Camera>, input: Res<Input>, time: Res<Time>) {
+    pub fn update(
+        mut camera: ResMut<Camera>,
+        input: Res<Input>,
+        time: Res<Time>,
+        render_state: Res<RenderState>,
+        mut resize_events: EventReader<WindowResizeEvent>,
+    ) {
         camera.update_position(&input, &time);
+
+        if resize_events.read().count() > 0 {
+            camera.reconfigure_aspect(render_state.get_effective_size());
+        }
     }
 }
 
@@ -186,7 +199,7 @@ impl CameraBuffer {
         commands.insert_resource(CameraBuffer {
             buffer: Buffer::with_data(
                 &render_state.gpu_handle,
-                "Camera Buffer",
+                "camera_buffer",
                 data.as_std140().as_slice(),
                 wgpu::BufferUsages::UNIFORM,
             ),
@@ -262,7 +275,7 @@ impl ViewBuffer {
         commands.insert_resource(ViewBuffer {
             buffer: Buffer::with_data(
                 &render_state.gpu_handle,
-                "View Buffer",
+                "screen_view_buffer",
                 data.as_std140().as_slice(),
                 wgpu::BufferUsages::UNIFORM,
             ),
@@ -280,13 +293,15 @@ impl ViewBuffer {
 pub struct ViewUniform {
     width: u32,
     height: u32,
+    aspect_ratio: f32,
     frame_count: u32,
 }
 
 impl ViewUniform {
     fn update_from(&mut self, render_state: &RenderState) {
-        self.width = render_state.size.width;
-        self.height = render_state.size.height;
+        self.width = render_state.get_effective_width();
+        self.height = render_state.get_effective_height();
+        self.aspect_ratio = self.width as f32 / self.height as f32;
         self.frame_count = self.frame_count.wrapping_add(1);
     }
 }
