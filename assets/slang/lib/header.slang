@@ -47,6 +47,13 @@ public struct View {
 public struct Screen {
     public ConstantBuffer<Camera> camera;
     public ConstantBuffer<View> view;
+
+    public bool shouldAccumulate() {
+        return 
+            all(this.camera.position == this.camera.previousPosition) &&
+            all(this.camera.view == this.camera.previousView) && 
+            all(this.camera.projectionMatrix[0] == this.camera.previousProjectionMatrix[0]);
+    }
 }
 
 public float2 getTaaOffset(uint frame) {

@@ -23,5 +23,8 @@ float4 fragment(
     uv -= display.effectiveStart;
     uv /= (display.effectiveEnd) - (display.effectiveStart);
 
-    return source.texture.Sample(source.sampler, uv);
+    float4 sample = source.texture.Sample(source.sampler, uv);
+    sample.rgb = pow(sample.rgb, float3(1.0 / 2.2));
+
+    return sample;
 }

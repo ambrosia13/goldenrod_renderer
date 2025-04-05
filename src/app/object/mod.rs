@@ -84,7 +84,13 @@ impl Objects {
         let mut update_triangles = false;
 
         for MaterialPushEvent(material) in material_push_events.read() {
-            objects.materials.data.push(*material);
+            let mut material = *material;
+
+            // Gamma correct on cpu side
+            material.albedo = material.albedo.powf(2.2);
+            material.emission = material.emission.powf(2.2);
+
+            objects.materials.data.push(material);
             update_materials = true;
         }
 
@@ -160,7 +166,7 @@ impl<T: AsStd430 + Default> CpuGpuBuffer<T> {
 pub type Materials = CpuGpuBuffer<Material>;
 
 #[repr(u32)]
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum MaterialType {
     #[default]
     Lambertian = 0,
@@ -174,7 +180,7 @@ impl gpu_bytes::AsStd430 for MaterialType {
     }
 }
 
-#[derive(AsStd430, Default, Clone, Copy, Debug)]
+#[derive(AsStd430, Default, Clone, Copy, Debug, PartialEq)]
 pub struct Material {
     pub albedo: Vec3,
     pub roughness: f32,
