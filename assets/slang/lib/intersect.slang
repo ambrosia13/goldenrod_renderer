@@ -46,5 +46,6 @@ public struct Hit {
 }
 
 public interface Hittable {
+    bool isUnhittable();
     Hit getHit(Ray ray);
 }

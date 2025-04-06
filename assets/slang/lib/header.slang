@@ -34,6 +34,22 @@ public struct Camera {
 
     public float3 right;
     public float3 up;
+
+    static float3 fromScreenSpace(float3 screenSpacePos, float4x4 matrix) {
+        float3 clipSpacePos = screenSpacePos * 2.0 - 1.0;
+        float4 temp = mul(matrix, float4(clipSpacePos, 1.0));
+        return temp.xyz / temp.w;
+    }
+
+    static float3 toScreenSpace(float3 pos, float4x4 matrix) {
+        float4 temp = mul(matrix, float4(pos, 1.0));
+        return (temp.xyz / temp.w) * 0.5 + 0.5;
+    }
+
+    public float3 screenToScene(float3 screenSpacePos) {
+        float3 worldSpacePos = fromScreenSpace(screenSpacePos, this.inverseViewProjectionMatrix);
+        return worldSpacePos - this.position;
+    }
 }
 
 public struct View {

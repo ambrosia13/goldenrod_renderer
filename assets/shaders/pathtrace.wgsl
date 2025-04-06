@@ -36,9 +36,9 @@ struct Material_std430_0
 {
     @align(16) albedo_0 : vec3<f32>,
     @align(4) roughness_0 : f32,
-    @align(16) emission_0 : vec3<f32>,
+    @align(16) emission_0 : f32,
     @align(4) ior_0 : f32,
-    @align(16) type_0 : u32,
+    @align(8) type_0 : u32,
 };
 
 @binding(0) @group(1) var<storage, read> entryPointParams_objects_materials_0 : array<Material_std430_0>;
@@ -75,7 +75,7 @@ struct Triangle_std430_0
 
 @binding(1) @group(2) var entryPointParams_textures_previous_0 : texture_2d<f32>;
 
-fn fromScreenSpace_0( screenSpacePos_0 : vec3<f32>,  matrix_0 : mat4x4<f32>) -> vec3<f32>
+fn Camera_fromScreenSpace_0( screenSpacePos_0 : vec3<f32>,  matrix_0 : mat4x4<f32>) -> vec3<f32>
 {
     var temp_0 : vec4<f32> = (((vec4<f32>(screenSpacePos_0 * vec3<f32>(2.0f) - vec3<f32>(1.0f), 1.0f)) * (matrix_0)));
     return temp_0.xyz / vec3<f32>(temp_0.w);
@@ -123,14 +123,19 @@ struct Sphere_0
      materialIndex_0 : u32,
 };
 
-fn Sphere_getHit_0( this_0 : Sphere_0,  ray_0 : Ray_0) -> Hit_0
+fn Sphere_isUnhittable_0( this_0 : Sphere_0) -> bool
+{
+    return (this_0.radius_0) == 0.0f;
+}
+
+fn Sphere_getHit_0( this_1 : Sphere_0,  ray_0 : Ray_0) -> Hit_0
 {
     var hit_0 : Hit_0 = Hit_x24init_0();
-    hit_0.materialIndex_3 = this_0.materialIndex_0;
-    var originToCenter_0 : vec3<f32> = ray_0.pos_0 - this_0.position_1;
+    hit_0.materialIndex_3 = this_1.materialIndex_0;
+    var originToCenter_0 : vec3<f32> = ray_0.pos_0 - this_1.position_1;
     var b_1 : f32 = dot(originToCenter_0, ray_0.dir_0);
     var a_1 : f32 = dot(ray_0.dir_0, ray_0.dir_0);
-    var _S4 : f32 = this_0.radius_0;
+    var _S4 : f32 = this_1.radius_0;
     var _S5 : f32 = b_1 * b_1 - a_1 * (dot(originToCenter_0, originToCenter_0) - _S4 * _S4);
     if(_S5 >= 0.0f)
     {
@@ -150,7 +155,7 @@ fn Sphere_getHit_0( this_0 : Sphere_0,  ray_0 : Ray_0) -> Hit_0
         if(t_0 > 0.0f)
         {
             var hitPosition_0 : vec3<f32> = ray_0.pos_0 + ray_0.dir_0 * vec3<f32>(t_0);
-            var outwardNormal_0 : vec3<f32> = normalize(hitPosition_0 - this_0.position_1);
+            var outwardNormal_0 : vec3<f32> = normalize(hitPosition_0 - this_1.position_1);
             var normal_1 : vec3<f32> = outwardNormal_0 * vec3<f32>(f32(- sign(dot(ray_0.dir_0, outwardNormal_0))));
             hit_0.success_0 = true;
             hit_0.position_2 = hitPosition_0;
@@ -161,9 +166,9 @@ fn Sphere_getHit_0( this_0 : Sphere_0,  ray_0 : Ray_0) -> Hit_0
     return hit_0;
 }
 
-fn Ray_intersect_0( this_1 : Ray_0,  object_0 : Sphere_0) -> Hit_0
+fn Ray_intersect_0( this_2 : Ray_0,  object_0 : Sphere_0) -> Hit_0
 {
-    return Sphere_getHit_0(object_0, this_1);
+    return Sphere_getHit_0(object_0, this_2);
 }
 
 struct Aabb_0
@@ -173,14 +178,14 @@ struct Aabb_0
      materialIndex_1 : u32,
 };
 
-fn Aabb_getHit_0( this_2 : Aabb_0,  ray_1 : Ray_0) -> Hit_0
+fn Aabb_getHit_0( this_3 : Aabb_0,  ray_1 : Ray_0) -> Hit_0
 {
     return Hit_x24init_0();
 }
 
-fn Ray_intersect_1( this_3 : Ray_0,  object_1 : Aabb_0) -> Hit_0
+fn Ray_intersect_1( this_4 : Ray_0,  object_1 : Aabb_0) -> Hit_0
 {
-    return Aabb_getHit_0(object_1, this_3);
+    return Aabb_getHit_0(object_1, this_4);
 }
 
 struct Triangle_0
@@ -191,14 +196,14 @@ struct Triangle_0
      materialIndex_2 : u32,
 };
 
-fn Triangle_getHit_0( this_4 : Triangle_0,  ray_2 : Ray_0) -> Hit_0
+fn Triangle_getHit_0( this_5 : Triangle_0,  ray_2 : Ray_0) -> Hit_0
 {
     return Hit_x24init_0();
 }
 
-fn Ray_intersect_2( this_5 : Ray_0,  object_2 : Triangle_0) -> Hit_0
+fn Ray_intersect_2( this_6 : Ray_0,  object_2 : Triangle_0) -> Hit_0
 {
-    return Triangle_getHit_0(object_2, this_5);
+    return Triangle_getHit_0(object_2, this_6);
 }
 
 fn Hit_merge_0( a_2 : Hit_0,  b_2 : Hit_0) -> Hit_0
@@ -262,153 +267,318 @@ fn Hit_merge_0( a_2 : Hit_0,  b_2 : Hit_0) -> Hit_0
     return hit_1;
 }
 
+fn Aabb_isUnhittable_0( this_7 : Aabb_0) -> bool
+{
+    return all((this_7.max_0) > (this_7.min_0));
+}
+
+fn Triangle_isUnhittable_0( this_8 : Triangle_0) -> bool
+{
+    var _S11 : bool;
+    if(all((this_8.a_0) == (this_8.b_0)))
+    {
+        _S11 = true;
+    }
+    else
+    {
+        _S11 = all((this_8.b_0) == (this_8.c_0));
+    }
+    if(_S11)
+    {
+        _S11 = true;
+    }
+    else
+    {
+        _S11 = all((this_8.a_0) == (this_8.c_0));
+    }
+    return _S11;
+}
+
+struct Material_0
+{
+     albedo_0 : vec3<f32>,
+     roughness_0 : f32,
+     emission_0 : f32,
+     ior_0 : f32,
+     type_0 : u32,
+};
+
+fn Material_getAlbedo_0( this_9 : Material_0) -> vec3<f32>
+{
+    return this_9.albedo_0 * vec3<f32>(step(this_9.emission_0, 0.00009999999747379f));
+}
+
+fn pcg_0( seed_0 : ptr<function, u32>)
+{
+    var state_0 : u32 = (*seed_0) * u32(747796405) + u32(2891336453);
+    var word_0 : u32 = ((((state_0 >> ((((state_0 >> (u32(28)))) + u32(4))))) ^ (state_0))) * u32(277803737);
+    (*seed_0) = (((word_0 >> (u32(22)))) ^ (word_0));
+    return;
+}
+
+struct Random_0
+{
+     state_1 : u32,
+};
+
+fn Random_getUint_0( this_10 : ptr<function, Random_0>) -> u32
+{
+    var _S12 : u32 = (*this_10).state_1;
+    pcg_0(&(_S12));
+    (*this_10).state_1 = _S12;
+    return _S12;
+}
+
+fn Random_getFloat_0( this_11 : ptr<function, Random_0>) -> f32
+{
+    var _S13 : u32 = Random_getUint_0(&((*this_11)));
+    return f32(_S13) / 4.294967296e+09f;
+}
+
+fn getTbnMatrix_0( normal_2 : vec3<f32>) -> mat3x3<f32>
+{
+    var tangent_0 : vec3<f32> = normalize(cross(normalize(vec3<f32>(1.0f, 0.5f, 0.25f)), normal_2));
+    return mat3x3<f32>(tangent_0, normalize(cross(normal_2, tangent_0)), normal_2);
+}
+
+fn ggxNormal_0( normal_3 : vec3<f32>,  roughness_1 : f32,  random_0 : ptr<function, Random_0>) -> vec3<f32>
+{
+    var r1_0 : f32 = Random_getFloat_0(&((*random_0)));
+    var r2_0 : f32 = Random_getFloat_0(&((*random_0)));
+    var a_3 : f32 = roughness_1 * roughness_1;
+    var phi_0 : f32 = 6.28318548202514648f * r1_0;
+    var cosTheta_0 : f32 = sqrt((1.0f - r2_0) / (1.0f + (a_3 * a_3 - 1.0f) * r2_0));
+    var sinTheta_0 : f32 = sqrt(1.0f - cosTheta_0 * cosTheta_0);
+    return (((getTbnMatrix_0(normal_3)) * (vec3<f32>(sinTheta_0 * cos(phi_0), sinTheta_0 * sin(phi_0), cosTheta_0))));
+}
+
+fn Material_evaluateBrdf_0( this_12 : Material_0,  hit_2 : Hit_0,  random_1 : ptr<function, Random_0>,  nextRay_0 : ptr<function, Ray_0>) -> vec3<f32>
+{
+    if((this_12.type_0) == u32(0))
+    {
+        var brdf_0 : vec3<f32> = Material_getAlbedo_0(this_12) / vec3<f32>(3.14159274101257324f);
+        var _S14 : vec3<f32> = hit_2.position_2 + hit_2.normal_0 * vec3<f32>(0.00009999999747379f);
+        var _S15 : vec3<f32> = ggxNormal_0(hit_2.normal_0, 1.0f, &((*random_1)));
+        (*nextRay_0) = Ray_x24init_0(_S14, _S15);
+        return brdf_0;
+    }
+    else
+    {
+        var _S16 : vec3<f32> = vec3<f32>(0.0f);
+        (*nextRay_0) = Ray_x24init_0(_S16, _S16);
+        return _S16;
+    }
+}
+
+fn Material_getEmission_0( this_13 : Material_0) -> vec3<f32>
+{
+    return this_13.albedo_0 * vec3<f32>(this_13.emission_0);
+}
+
+fn Camera_screenToScene_0( _S17 : vec3<f32>) -> vec3<f32>
+{
+    return Camera_fromScreenSpace_0(_S17, mat4x4<f32>(entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(3)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(3)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(3)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(3)])) - entryPointParams_screen_camera_0.position_0;
+}
+
+fn Random_x24init_0( _S18 : vec2<u32>) -> Random_0
+{
+    var _S19 : Random_0;
+    _S19.state_1 = entryPointParams_screen_view_0.width_0 * entryPointParams_screen_view_0.height_0 * (entryPointParams_screen_view_0.frameCount_0 + u32(1)) * (_S18.x + _S18.y * entryPointParams_screen_view_0.width_0);
+    return _S19;
+}
+
 fn getCount_0() -> i32
 {
-    var _S11 : vec2<u32> = vec2<u32>(arrayLength(&entryPointParams_objects_spheres_0), 32);
-    return i32(_S11.x);
+    var _S20 : vec2<u32> = vec2<u32>(arrayLength(&entryPointParams_objects_spheres_0), 32);
+    return i32(_S20.x);
 }
 
 fn getCount_1() -> i32
 {
-    var _S12 : vec2<u32> = vec2<u32>(arrayLength(&entryPointParams_objects_aabbs_0), 32);
-    return i32(_S12.x);
+    var _S21 : vec2<u32> = vec2<u32>(arrayLength(&entryPointParams_objects_aabbs_0), 32);
+    return i32(_S21.x);
 }
 
 fn getCount_2() -> i32
 {
-    var _S13 : vec2<u32> = vec2<u32>(arrayLength(&entryPointParams_objects_triangles_0), 48);
-    return i32(_S13.x);
+    var _S22 : vec2<u32> = vec2<u32>(arrayLength(&entryPointParams_objects_triangles_0), 48);
+    return i32(_S22.x);
 }
 
-fn Objects_getHit_0( _S14 : Ray_0) -> Hit_0
+fn Objects_getHit_0( _S23 : Ray_0) -> Hit_0
 {
-    var _S15 : Hit_0 = Hit_x24init_0();
-    var _S16 : i32 = getCount_0();
-    var _S17 : i32 = getCount_1();
-    var _S18 : i32 = getCount_2();
-    var hit_2 : Hit_0 = _S15;
+    var _S24 : Hit_0 = Hit_x24init_0();
+    var _S25 : i32 = getCount_0();
+    var _S26 : i32 = getCount_1();
+    var _S27 : i32 = getCount_2();
+    var hit_3 : Hit_0 = _S24;
     var i_0 : i32 = i32(0);
     for(;;)
     {
-        if(i_0 < _S16)
+        if(i_0 < _S25)
         {
         }
         else
         {
             break;
         }
-        var _S19 : Sphere_0 = Sphere_0( entryPointParams_objects_spheres_0[i_0].position_1, entryPointParams_objects_spheres_0[i_0].radius_0, entryPointParams_objects_spheres_0[i_0].materialIndex_0 );
-        var _S20 : Hit_0 = Hit_merge_0(hit_2, Ray_intersect_0(_S14, _S19));
-        var i_1 : i32 = i_0 + i32(1);
-        hit_2 = _S20;
-        i_0 = i_1;
+        var _S28 : Sphere_0 = Sphere_0( entryPointParams_objects_spheres_0[i_0].position_1, entryPointParams_objects_spheres_0[i_0].radius_0, entryPointParams_objects_spheres_0[i_0].materialIndex_0 );
+        if(Sphere_isUnhittable_0(_S28))
+        {
+            i_0 = i_0 + i32(1);
+            continue;
+        }
+        var _S29 : Sphere_0 = Sphere_0( entryPointParams_objects_spheres_0[i_0].position_1, entryPointParams_objects_spheres_0[i_0].radius_0, entryPointParams_objects_spheres_0[i_0].materialIndex_0 );
+        hit_3 = Hit_merge_0(hit_3, Ray_intersect_0(_S23, _S29));
+        i_0 = i_0 + i32(1);
     }
     i_0 = i32(0);
     for(;;)
     {
-        if(i_0 < _S17)
+        if(i_0 < _S26)
         {
         }
         else
         {
             break;
         }
-        var _S21 : Aabb_0 = Aabb_0( entryPointParams_objects_aabbs_0[i_0].min_0, entryPointParams_objects_aabbs_0[i_0].max_0, entryPointParams_objects_aabbs_0[i_0].materialIndex_1 );
-        var _S22 : Hit_0 = Hit_merge_0(hit_2, Ray_intersect_1(_S14, _S21));
-        var i_2 : i32 = i_0 + i32(1);
-        hit_2 = _S22;
-        i_0 = i_2;
+        var _S30 : Aabb_0 = Aabb_0( entryPointParams_objects_aabbs_0[i_0].min_0, entryPointParams_objects_aabbs_0[i_0].max_0, entryPointParams_objects_aabbs_0[i_0].materialIndex_1 );
+        if(Aabb_isUnhittable_0(_S30))
+        {
+            i_0 = i_0 + i32(1);
+            continue;
+        }
+        var _S31 : Aabb_0 = Aabb_0( entryPointParams_objects_aabbs_0[i_0].min_0, entryPointParams_objects_aabbs_0[i_0].max_0, entryPointParams_objects_aabbs_0[i_0].materialIndex_1 );
+        hit_3 = Hit_merge_0(hit_3, Ray_intersect_1(_S23, _S31));
+        i_0 = i_0 + i32(1);
     }
     i_0 = i32(0);
     for(;;)
     {
-        if(i_0 < _S18)
+        if(i_0 < _S27)
         {
         }
         else
         {
             break;
         }
-        var _S23 : Triangle_0 = Triangle_0( entryPointParams_objects_triangles_0[i_0].a_0, entryPointParams_objects_triangles_0[i_0].b_0, entryPointParams_objects_triangles_0[i_0].c_0, entryPointParams_objects_triangles_0[i_0].materialIndex_2 );
-        var _S24 : Hit_0 = Hit_merge_0(hit_2, Ray_intersect_2(_S14, _S23));
-        var i_3 : i32 = i_0 + i32(1);
-        hit_2 = _S24;
-        i_0 = i_3;
+        var _S32 : Triangle_0 = Triangle_0( entryPointParams_objects_triangles_0[i_0].a_0, entryPointParams_objects_triangles_0[i_0].b_0, entryPointParams_objects_triangles_0[i_0].c_0, entryPointParams_objects_triangles_0[i_0].materialIndex_2 );
+        if(Triangle_isUnhittable_0(_S32))
+        {
+            i_0 = i_0 + i32(1);
+            continue;
+        }
+        var _S33 : Triangle_0 = Triangle_0( entryPointParams_objects_triangles_0[i_0].a_0, entryPointParams_objects_triangles_0[i_0].b_0, entryPointParams_objects_triangles_0[i_0].c_0, entryPointParams_objects_triangles_0[i_0].materialIndex_2 );
+        hit_3 = Hit_merge_0(hit_3, Ray_intersect_2(_S23, _S33));
+        i_0 = i_0 + i32(1);
     }
-    return hit_2;
+    return hit_3;
+}
+
+fn pathtrace_0( _S34 : Ray_0,  _S35 : ptr<function, Random_0>) -> vec3<f32>
+{
+    var _S36 : vec3<f32> = vec3<f32>(1.0f);
+    var _S37 : vec3<f32> = vec3<f32>(0.0f);
+    var _S38 : Ray_0 = _S34;
+    var i_1 : i32 = i32(0);
+    var throughput_0 : vec3<f32> = _S36;
+    var radiance_0 : vec3<f32> = _S37;
+    var _S39 : vec3<f32> = vec3<f32>(3.14159274101257324f);
+    for(;;)
+    {
+        if(i_1 < i32(5))
+        {
+        }
+        else
+        {
+            break;
+        }
+        var _S40 : Hit_0 = Objects_getHit_0(_S38);
+        if(!_S40.success_0)
+        {
+            radiance_0 = radiance_0 + throughput_0 * _S37;
+            break;
+        }
+        var _S41 : Material_0 = Material_0( entryPointParams_objects_materials_0[_S40.materialIndex_3].albedo_0, entryPointParams_objects_materials_0[_S40.materialIndex_3].roughness_0, entryPointParams_objects_materials_0[_S40.materialIndex_3].emission_0, entryPointParams_objects_materials_0[_S40.materialIndex_3].ior_0, entryPointParams_objects_materials_0[_S40.materialIndex_3].type_0 );
+        var nextRay_1 : Ray_0;
+        var brdf_1 : vec3<f32> = Material_evaluateBrdf_0(_S41, _S40, &((*_S35)), &(nextRay_1));
+        var radiance_1 : vec3<f32> = radiance_0 + throughput_0 * Material_getEmission_0(_S41);
+        var throughput_1 : vec3<f32> = throughput_0 * (brdf_1 / _S39);
+        var _S42 : Ray_0 = nextRay_1;
+        var i_2 : i32 = i_1 + i32(1);
+        _S38 = _S42;
+        i_1 = i_2;
+        throughput_0 = throughput_1;
+        radiance_0 = radiance_1;
+    }
+    return radiance_0;
 }
 
 fn Screen_shouldAccumulate_0() -> bool
 {
-    var _S25 : bool;
+    var _S43 : bool;
     if(all((entryPointParams_screen_camera_0.position_0) == (entryPointParams_screen_camera_0.previousPosition_0)))
     {
-        _S25 = all((entryPointParams_screen_camera_0.view_0) == (entryPointParams_screen_camera_0.previousView_0));
+        _S43 = all((entryPointParams_screen_camera_0.view_0) == (entryPointParams_screen_camera_0.previousView_0));
     }
     else
     {
-        _S25 = false;
+        _S43 = false;
     }
-    if(_S25)
+    if(_S43)
     {
-        _S25 = all(vec4<f32>(entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(0)][i32(0)], entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(1)][i32(0)], entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(2)][i32(0)], entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(3)][i32(0)]) == vec4<f32>(entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(0)][i32(0)], entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(1)][i32(0)], entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(2)][i32(0)], entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(3)][i32(0)]));
+        _S43 = all(vec4<f32>(entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(0)][i32(0)], entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(1)][i32(0)], entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(2)][i32(0)], entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(3)][i32(0)]) == vec4<f32>(entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(0)][i32(0)], entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(1)][i32(0)], entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(2)][i32(0)], entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(3)][i32(0)]));
     }
     else
     {
-        _S25 = false;
+        _S43 = false;
     }
-    return _S25;
+    return _S43;
 }
 
 @compute
 @workgroup_size(8, 8, 1)
 fn compute(@builtin(global_invocation_id) globalInvocationId_0 : vec3<u32>, @builtin(local_invocation_id) localInvocationId_0 : vec3<u32>)
 {
-    var _S26 : u32 = globalInvocationId_0.x;
-    var _S27 : bool;
-    if(_S26 >= (entryPointParams_screen_view_0.width_0))
+    var _S44 : u32 = globalInvocationId_0.x;
+    var _S45 : bool;
+    if(_S44 >= (entryPointParams_screen_view_0.width_0))
     {
-        _S27 = true;
+        _S45 = true;
     }
     else
     {
-        _S27 = (globalInvocationId_0.y) >= (entryPointParams_screen_view_0.height_0);
+        _S45 = (globalInvocationId_0.y) >= (entryPointParams_screen_view_0.height_0);
     }
-    if(_S27)
+    if(_S45)
     {
         return;
     }
-    var _S28 : vec2<f32> = vec2<f32>(f32(_S26), f32(globalInvocationId_0.y)) / vec2<f32>(f32(entryPointParams_screen_view_0.width_0), f32(entryPointParams_screen_view_0.height_0));
-    var texcoord_0 : vec2<f32> = _S28;
-    texcoord_0[i32(1)] = 1.0f - _S28.y;
-    var ray_3 : Ray_0 = Ray_x24init_0(entryPointParams_screen_camera_0.position_0, normalize(fromScreenSpace_0(vec3<f32>(texcoord_0, 1.0f), mat4x4<f32>(entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(3)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(3)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(3)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(3)])) - entryPointParams_screen_camera_0.position_0));
-    var _S29 : Hit_0 = Objects_getHit_0(ray_3);
-    var color_0 : vec3<f32>;
-    if(_S29.success_0)
-    {
-        color_0 = entryPointParams_objects_materials_0[_S29.materialIndex_3].albedo_0 * vec3<f32>(max(0.0f, dot(_S29.normal_0, normalize(vec3<f32>(0.20000000298023224f, 0.40000000596046448f, -0.69999998807907104f)))));
-    }
-    else
-    {
-        color_0 = ray_3.dir_0;
-    }
-    var _S30 : vec2<u32> = globalInvocationId_0.xy;
-    var _S31 : vec3<i32> = vec3<i32>(vec2<i32>(_S30), i32(0));
-    var previousSample_0 : vec4<f32> = (textureLoad((entryPointParams_textures_previous_0), ((_S31)).xy, ((_S31)).z));
+    var _S46 : vec2<f32> = vec2<f32>(f32(_S44), f32(globalInvocationId_0.y)) / vec2<f32>(f32(entryPointParams_screen_view_0.width_0), f32(entryPointParams_screen_view_0.height_0));
+    var texcoord_0 : vec2<f32> = _S46;
+    texcoord_0[i32(1)] = 1.0f - _S46.y;
+    var viewDir_0 : vec3<f32> = normalize(Camera_screenToScene_0(vec3<f32>(texcoord_0, 1.0f)));
+    var _S47 : vec2<u32> = globalInvocationId_0.xy;
+    var random_2 : Random_0 = Random_x24init_0(_S47);
+    var _S48 : vec3<f32> = pathtrace_0(Ray_x24init_0(entryPointParams_screen_camera_0.position_0, viewDir_0), &(random_2));
+    var _S49 : vec3<i32> = vec3<i32>(vec2<i32>(_S47), i32(0));
+    var previousSample_0 : vec4<f32> = (textureLoad((entryPointParams_textures_previous_0), ((_S49)).xy, ((_S49)).z));
     var previousColor_0 : vec3<f32> = previousSample_0.xyz;
     var frameAge_0 : f32 = previousSample_0.w;
+    var color_0 : vec3<f32>;
     var frameAge_1 : f32;
     if(Screen_shouldAccumulate_0())
     {
-        var _S32 : f32 = frameAge_0 + 1.0f;
-        color_0 = mix(previousColor_0, color_0, vec3<f32>((1.0f / _S32)));
-        frameAge_1 = _S32;
+        var _S50 : f32 = frameAge_0 + 1.0f;
+        color_0 = mix(previousColor_0, _S48, vec3<f32>((1.0f / _S50)));
+        frameAge_1 = _S50;
     }
     else
     {
+        color_0 = _S48;
         frameAge_1 = 0.0f;
     }
-    textureStore((entryPointParams_textures_current_0), (_S30), (vec4<f32>(color_0, frameAge_1)));
+    textureStore((entryPointParams_textures_current_0), (_S47), (vec4<f32>(color_0, frameAge_1)));
     return;
 }
 

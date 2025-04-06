@@ -108,6 +108,10 @@ impl Menu {
             menu.settings.fullscreen = !menu.settings.fullscreen;
         }
 
+        if input.keys.just_pressed(KeyCode::KeyR) {
+            shader_recompile_events.send(ShaderRecompileEvent);
+        }
+
         let mut fov_sensitivity = 2.5;
         let mut speed_sensitivity = 1.0;
 
@@ -178,12 +182,15 @@ impl Menu {
                         });
                         material.albedo = albedo.into();
 
-                        let mut emission: [f32; 3] = material.emission.into();
                         ui.horizontal(|ui| {
                             ui.label("Emission");
-                            ui.color_edit_button_rgb(&mut emission);
+                            ui.add(
+                                DragValue::new(&mut material.emission)
+                                    .speed(0.1)
+                                    .fixed_decimals(2)
+                                    .range(0.0..=f32::INFINITY),
+                            );
                         });
-                        material.emission = emission.into();
 
                         ui.label("Material Type");
                         egui::ComboBox::from_label("")
@@ -251,13 +258,15 @@ impl Menu {
                                 ui.label("Center");
                                 vec3_editor(&mut sphere.center, ui);
 
-                                ui.label("Radius");
-                                ui.add(
-                                    DragValue::new(&mut sphere.radius)
-                                        .fixed_decimals(2)
-                                        .speed(0.1)
-                                        .range(0.01..=1000.0),
-                                );
+                                ui.horizontal(|ui| {
+                                    ui.label("Radius");
+                                    ui.add(
+                                        DragValue::new(&mut sphere.radius)
+                                            .fixed_decimals(2)
+                                            .speed(0.1)
+                                            .range(0.01..=f32::INFINITY),
+                                    );
+                                });
                             }
                             GeometryType::Aabb => {
                                 let aabb = &mut menu.settings.aabb;
@@ -383,6 +392,7 @@ impl Menu {
                     ui.label("Arrow up/down: FOV");
                     ui.label("Arrow left/right: movement speed");
                     ui.label("Escape: show/hide menu");
+                    ui.label("R: recompile shaders");
                 });
 
             // If there was a shader compile error, display it to the screen

@@ -9,18 +9,34 @@ public struct Objects: Hittable {
     public StructuredBuffer<Aabb> aabbs;
     public StructuredBuffer<Triangle> triangles;
 
+    public bool isUnhittable() {
+        return true;
+    }
+
     public Hit getHit(Ray ray) {
         Hit hit;
 
         for (int i = 0; i < this.spheres.getCount(); ++i) {
+            if (spheres[i].isUnhittable()) {
+                continue;
+            }
+
             hit = Hit.merge(hit, ray.intersect(spheres[i]));
         }
 
         for (int i = 0; i < this.aabbs.getCount(); ++i) {
+            if (aabbs[i].isUnhittable()) {
+                continue;
+            }
+
             hit = Hit.merge(hit, ray.intersect(aabbs[i]));
         }
 
         for (int i = 0; i < this.triangles.getCount(); ++i) {
+            if (triangles[i].isUnhittable()) {
+                continue;
+            }
+
             hit = Hit.merge(hit, ray.intersect(triangles[i]));
         }
 
@@ -38,6 +54,10 @@ public struct Sphere: Hittable {
     public float3 position;
     public float radius;
     public uint materialIndex;
+
+    public bool isUnhittable() {
+        return this.radius == 0.0;
+    }
 
     public Hit getHit(Ray ray) {
         Hit hit;
@@ -86,6 +106,10 @@ public struct Aabb: Hittable {
     public float3 max;
     public uint materialIndex;
 
+    public bool isUnhittable() {
+        return all(this.max > this.min);
+    }
+
     public Hit getHit(Ray ray) {
         Hit hit;
         return hit;
@@ -97,6 +121,10 @@ public struct Triangle: Hittable {
     public float3 b;
     public float3 c;
     public uint materialIndex;
+
+    public bool isUnhittable() {
+        return all(this.a == this.b) || all(this.b == this.c) || all(this.a == this.c);
+    }
 
     public Hit getHit(Ray ray) {
         Hit hit;

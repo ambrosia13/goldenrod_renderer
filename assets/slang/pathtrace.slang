@@ -1,14 +1,45 @@
 module pathtrace;
 
-import "lib/header";
-import "lib/intersect";
-import "lib/material";
-import "lib/object";
-import "lib/space";
+import lib.header;
+import lib.intersect;
+import lib.material;
+import lib.object;
+import lib.space;
+import lib.noise;
 
 struct Textures {
     RWTexture2D<float4> current;
     Texture2D<float4> previous;
+}
+
+float3 pathtrace(Ray ray, in Objects objects, inout Random random) {
+    // ray energy and final color
+    float3 throughput = float3(1.0);
+    float3 radiance = float3(0.0);
+
+    const int maxBounces = 5;
+
+    for (int i = 0; i < maxBounces; ++i) {
+        Hit hit = objects.getHit(ray);
+
+        if (!hit.success) {
+            // hit sky
+            radiance += throughput * float3(0.0);
+            break;
+        }
+
+        Material material = objects.materials[hit.materialIndex];
+
+        Ray nextRay;
+        float3 brdf = material.evaluateBrdf(hit, random, nextRay);
+
+        radiance += throughput * material.getEmission();
+        throughput *= brdf / PI;
+        
+        ray = nextRay;
+    }
+
+    return radiance;
 }
 
 [[numthreads(8, 8, 1)]]
@@ -30,14 +61,13 @@ void compute(
     texcoord.y = 1.0 - texcoord.y;
 
     float3 screenSpacePos = float3(texcoord, 1.0);
-    float3 worldSpacePos = fromScreenSpace(screenSpacePos, screen.camera.inverseViewProjectionMatrix);
-    float3 sceneSpacePos = worldSpacePos - screen.camera.position;
-
+    float3 sceneSpacePos = screen.camera.screenToScene(screenSpacePos);
     float3 viewDir = normalize(sceneSpacePos);
+
+    Random random = Random(screen, globalInvocationId.xy);
     Ray ray = Ray(screen.camera.position, viewDir);
 
-    Hit hit = objects.getHit(ray);
-    float3 color = hit.success ? objects.materials[hit.materialIndex].albedo * max(0.0, dot(hit.normal, normalize(float3(0.2, 0.4, -0.7)))) : ray.dir;
+    float3 color = pathtrace(ray, objects, random);
 
     float4 previousSample = textures.previous.Load(int3(globalInvocationId.xy, 0));
     float3 previousColor = previousSample.rgb;

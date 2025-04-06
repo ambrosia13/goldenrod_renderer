@@ -203,6 +203,10 @@ impl<T: AsStd430 + Default> BufferVec<T> {
 
             true
         } else {
+            // extend the buffer to be at least the current size.
+            let mut bytes = buf.as_slice().to_vec();
+            bytes.extend(std::iter::repeat(0).take(self.inner.size - bytes.len()));
+
             // Doesn't need to reallocate, we can write as normal
             self.inner.write(buf.as_slice(), 0);
 

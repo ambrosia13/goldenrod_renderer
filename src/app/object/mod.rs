@@ -184,7 +184,7 @@ impl gpu_bytes::AsStd430 for MaterialType {
 pub struct Material {
     pub albedo: Vec3,
     pub roughness: f32,
-    pub emission: Vec3,
+    pub emission: f32,
     pub ior: f32,
     pub ty: MaterialType,
 }
