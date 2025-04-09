@@ -12,19 +12,9 @@ use bevy_ecs::{
 };
 use regex::Regex;
 
-use crate::app::menu::Menu;
+use crate::{app::menu::Menu, util};
 
 use super::GpuHandle;
-
-fn path_name_to_string<P: AsRef<Path>>(path: P) -> String {
-    // ew
-    path.as_ref()
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_owned()
-}
 
 fn resolve_includes(mut source: String, parent_dir: &Path) -> Result<String, std::io::Error> {
     let mut included = HashSet::new();
@@ -86,7 +76,7 @@ pub struct ShaderSource {
 
 impl ShaderSource {
     fn load<P: AsRef<Path>>(path: P, backend: ShaderBackend) -> Self {
-        let name = path_name_to_string(&path);
+        let name = util::path_name_to_string(&path);
         let path = path.as_ref().to_owned();
 
         let metadata = ShaderMetadata {

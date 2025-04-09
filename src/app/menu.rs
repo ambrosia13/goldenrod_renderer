@@ -340,6 +340,10 @@ impl Menu {
                             }
                         }
                     });
+
+                    // ui.heading("Scenes");
+
+                    // if ui.button("White furnace").clicked() {}
                 });
 
             egui::SidePanel::right("right")

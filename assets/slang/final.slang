@@ -7,6 +7,40 @@ struct Source {
     SamplerState sampler;
 }
 
+public struct CameraResponse {
+    Texture1D<float> red;
+    Texture1D<float> green;
+    Texture1D<float> blue;
+
+    SamplerState sampler;
+
+    static const float ISO = 1.0;
+
+    float normalizeIrradiance(float irradiance) {
+        return clamp(irradiance * ISO, 0.0, 1.0);
+    }
+
+    float irradianceToIntensityRed(float irradiance) {
+        return red.Sample(sampler, normalizeIrradiance(irradiance));
+    }
+
+    float irradianceToIntensityGreen(float irradiance) {
+        return green.Sample(sampler, normalizeIrradiance(irradiance));
+    }
+
+    float irradianceToIntensityBlue(float irradiance) {
+        return blue.Sample(sampler, normalizeIrradiance(irradiance));
+    }
+
+    public float3 toneMap(float3 irradiance) {
+        return float3(
+            irradianceToIntensityRed(irradiance.r),
+            irradianceToIntensityGreen(irradiance.g),
+            irradianceToIntensityBlue(irradiance.b)
+        );
+    }
+}
+
 struct Display {
     float2 effectiveStart;
     float2 effectiveEnd;
@@ -33,16 +67,17 @@ float3 FRX_RRT_AND_ODTF_FIT(float3 v) {
 }
 
 float3 frx_toneMap(float3 color) {
-    color = mul(FRX_ACES_INPUT_MATRIX, color);
+    color = mul(color, FRX_ACES_INPUT_MATRIX);
     color = FRX_RRT_AND_ODTF_FIT(color);
 
-    return mul(FRX_ACES_OUTPUT_MATRIX, color);
+    return mul(color, FRX_ACES_OUTPUT_MATRIX);
 }
 
 [[shader("fragment")]]
 float4 fragment(
     VertexOutput input,
     uniform ParameterBlock<Source> source,
+    uniform ParameterBlock<CameraResponse> cameraResponse,
     uniform ParameterBlock<Display> display,
 ): SV_Target {
     float2 uv = input.uv;
@@ -53,7 +88,7 @@ float4 fragment(
     float4 sample = source.texture.Sample(source.sampler, uv);
 
     sample.rgb = pow(sample.rgb, float3(1.0 / 2.2));
-    sample.rgb = frx_toneMap(sample.rgb);
+    sample.rgb = cameraResponse.toneMap(sample.rgb);
 
     return sample;
 }

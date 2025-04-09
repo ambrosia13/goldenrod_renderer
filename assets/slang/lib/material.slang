@@ -4,8 +4,25 @@ import header;
 import intersect;
 import space;
 import noise;
+import spectrum;
 
-float3 ggxNormal(float3 normal, float roughness, inout Random random) {
+float3 cosineSample(float3 normal, inout Random random) {
+    float r1 = random.getFloat();
+    float r2 = random.getFloat();
+
+    float phi = 2.0 * PI * r1;
+
+    float cosTheta = sqrt(1.0 - r2);
+    float sinTheta = sqrt(r2);
+
+    float x = sinTheta * cos(phi);
+    float y = sinTheta * sin(phi);
+    float z = cosTheta;
+
+    return mul(float3(x, y, z), getTbnMatrix(normal));
+}
+
+float3 ggxSample(float3 normal, float roughness, inout Random random) {
     float r1 = random.getFloat();
     float r2 = random.getFloat();
 
@@ -28,7 +45,7 @@ float3 ggxNormal(float3 normal, float roughness, inout Random random) {
 public namespace MaterialType {
     public static const uint LAMBERTIAN = 0;
     public static const uint METAL = 1;
-    public static const uint DIELECTRIC = 3;
+    public static const uint DIELECTRIC = 2;
 }
 
 public struct Material {
@@ -46,15 +63,16 @@ public struct Material {
         return this.albedo * this.emission;
     }
 
-    public float3 evaluateBrdf(in Hit hit, inout Random random, out Ray nextRay) {
+    public float evaluateBrdf(Hit hit, float wavelength, in Spectrum spectrum, inout Random random, out Ray nextRay) {
         if (this.type == MaterialType.LAMBERTIAN) {
-            float3 brdf = this.getAlbedo() / PI;
-            nextRay = Ray(hit.position + hit.normal * 0.0001, ggxNormal(hit.normal, 1.0, random));
+            float brdf = spectrum.rgbToSpectralRadiance(wavelength, this.getAlbedo());
+            nextRay = Ray(hit.position + hit.normal * 0.0001, random.getCosineVector(hit.normal));
 
+            // cosine sampling implicitly multiplies by the pdf, so no need to divide by pi
             return brdf;
         } else {
             nextRay = Ray(float3(0.0), float3(0.0));
-            return float3(0.0);
+            return 0.0;
         }
     }
 }

@@ -9,8 +9,8 @@ use gpu_bytes_derive::AsStd140;
 use crate::render::{
     binding::{Binding, BindingEntry},
     buffer::Buffer,
-    shader::{Shader, ShaderSource},
-    texture::Texture,
+    shader::{Shader, ShaderRecompileEvent, ShaderSource},
+    texture::{Texture, TextureType},
     FrameData, GpuHandle, RenderState, WindowResizeEvent,
 };
 
@@ -43,11 +43,19 @@ impl FinalUniform {
 
 #[derive(Resource)]
 pub struct FinalPass {
-    pipeline: wgpu::RenderPipeline,
     sampler: wgpu::Sampler,
-    texture_binding: Binding,
+
     uniform_buffer: Buffer,
+
+    texture_binding: Binding,
+    camera_response_binding: Binding,
     uniform_binding: Binding,
+
+    vertex_shader: Shader,
+    fragment_shader: Shader,
+    pipeline_layout: wgpu::PipelineLayout,
+    pipeline: wgpu::RenderPipeline,
+
     time_query_index: usize,
 
     gpu_handle: GpuHandle,
@@ -92,6 +100,8 @@ impl FinalPass {
             &[uniform_buffer.bind_uniform(0, None, false)],
         );
 
+        let camera_response_binding = Self::create_lut_binding(gpu_handle.clone());
+
         let pipeline_layout =
             gpu_handle
                 .device
@@ -99,26 +109,106 @@ impl FinalPass {
                     label: Some("final_pipeline_layout"),
                     bind_group_layouts: &[
                         texture_binding.bind_group_layout(),
+                        camera_response_binding.bind_group_layout(),
                         uniform_binding.bind_group_layout(),
                     ],
                     push_constant_ranges: &[],
                 });
 
-        let vertex_shader = Shader::new(
+        let (vertex_shader, fragment_shader, pipeline) =
+            Self::create_shader_and_pipeline(render_state, &pipeline_layout);
+
+        let time_query_index = profiler.push(&gpu_handle, "final");
+
+        Self {
+            pipeline,
+            sampler,
+            texture_binding,
+            uniform_buffer,
+            uniform_binding,
+            time_query_index,
+            gpu_handle,
+            camera_response_binding,
+            vertex_shader,
+            fragment_shader,
+            pipeline_layout,
+        }
+    }
+
+    fn create_lut_binding(gpu_handle: GpuHandle) -> Binding {
+        let camera_response_red = Texture::load_raw(
             gpu_handle.clone(),
+            "assets/textures/camera_response/Kodachrome-64CDRed.bin",
+            (1024, 1, 1),
+            wgpu::TextureFormat::R32Float,
+            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            TextureType::Texture1d,
+        );
+
+        let camera_response_red_view = camera_response_red.view(0..1, 0..1);
+
+        let camera_response_green = Texture::load_raw(
+            gpu_handle.clone(),
+            "assets/textures/camera_response/Kodachrome-64CDGreen.bin",
+            (1024, 1, 1),
+            wgpu::TextureFormat::R32Float,
+            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            TextureType::Texture1d,
+        );
+
+        let camera_response_green_view = camera_response_green.view(0..1, 0..1);
+
+        let camera_response_blue = Texture::load_raw(
+            gpu_handle.clone(),
+            "assets/textures/camera_response/Kodachrome-64CDBlue.bin",
+            (1024, 1, 1),
+            wgpu::TextureFormat::R32Float,
+            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            TextureType::Texture1d,
+        );
+
+        let camera_response_blue_view = camera_response_blue.view(0..1, 0..1);
+
+        let camera_response_sampler = gpu_handle.device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("final_camera_response_sampler"),
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            ..Default::default()
+        });
+
+        Binding::new(
+            gpu_handle,
+            &[
+                camera_response_red.bind_view(&camera_response_red_view),
+                camera_response_green.bind_view(&camera_response_green_view),
+                camera_response_blue.bind_view(&camera_response_blue_view),
+                BindingEntry {
+                    binding_type: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                    resource: wgpu::BindingResource::Sampler(&camera_response_sampler),
+                },
+            ],
+        )
+    }
+
+    fn create_shader_and_pipeline(
+        render_state: &RenderState,
+        pipeline_layout: &wgpu::PipelineLayout,
+    ) -> (Shader, Shader, wgpu::RenderPipeline) {
+        let vertex_shader = Shader::new(
+            render_state.gpu_handle.clone(),
             ShaderSource::load_wgsl("assets/shaders/frame.wgsl"),
         );
 
         let fragment_shader = Shader::new(
-            gpu_handle.clone(),
-            ShaderSource::load_wgsl("assets/shaders/copy.wgsl"),
+            render_state.gpu_handle.clone(),
+            ShaderSource::load_wgsl("assets/shaders/final.wgsl"),
         );
 
-        let pipeline = gpu_handle
-            .device
-            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let pipeline = render_state.gpu_handle.device.create_render_pipeline(
+            &wgpu::RenderPipelineDescriptor {
                 label: Some("final_render_pipeline"),
-                layout: Some(&pipeline_layout),
+                layout: Some(pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: vertex_shader.module(),
                     entry_point: Some("vertex"),
@@ -140,19 +230,10 @@ impl FinalPass {
                 }),
                 multiview: None,
                 cache: None,
-            });
+            },
+        );
 
-        let time_query_index = profiler.push(&gpu_handle, "final");
-
-        Self {
-            pipeline,
-            sampler,
-            texture_binding,
-            uniform_buffer,
-            uniform_binding,
-            time_query_index,
-            gpu_handle,
-        }
+        (vertex_shader, fragment_shader, pipeline)
     }
 
     fn create_texture_binding(
@@ -203,7 +284,8 @@ impl FinalPass {
             });
 
         render_pass.set_bind_group(0, self.texture_binding.bind_group(), &[]);
-        render_pass.set_bind_group(1, self.uniform_binding.bind_group(), &[]);
+        render_pass.set_bind_group(1, self.camera_response_binding.bind_group(), &[]);
+        render_pass.set_bind_group(2, self.uniform_binding.bind_group(), &[]);
         render_pass.set_pipeline(&self.pipeline);
 
         render_pass.draw(0..6, 0..1);
@@ -230,6 +312,7 @@ impl FinalPass {
         mut profiler: ResMut<RenderProfiler>,
 
         mut resize_events: EventReader<WindowResizeEvent>,
+        mut shader_recompile_events: EventReader<ShaderRecompileEvent>,
     ) {
         if resize_events.read().count() > 0 {
             display.texture_binding = Self::create_texture_binding(
@@ -237,6 +320,15 @@ impl FinalPass {
                 &display.sampler,
                 &pathtrace.color_texture,
             )
+        }
+
+        if shader_recompile_events.read().count() > 0 {
+            let (vertex, fragment, pipeline) =
+                Self::create_shader_and_pipeline(&render_state, &display.pipeline_layout);
+
+            display.vertex_shader = vertex;
+            display.fragment_shader = fragment;
+            display.pipeline = pipeline;
         }
 
         let data = FinalUniform::from_render_state(&render_state);

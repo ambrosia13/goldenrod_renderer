@@ -1,4 +1,4 @@
-use std::{ops::Range, sync::Arc};
+use std::{ops::Range, path::Path, sync::Arc};
 
 use bevy_ecs::{
     component::Component,
@@ -8,9 +8,11 @@ use bevy_ecs::{
     system::{Query, Res},
 };
 
-use crate::app::menu::Menu;
+use crate::{app::menu::Menu, util};
 
 use super::{binding::BindingEntry, GpuHandle, WindowResizeEvent, WGPU_FEATURES};
+
+pub mod image;
 
 #[derive(Debug, Clone, Copy)]
 pub enum TextureType {
@@ -86,6 +88,51 @@ pub struct Texture {
 }
 
 impl Texture {
+    pub fn load_raw<P: AsRef<Path>>(
+        gpu_handle: impl Into<GpuHandle>,
+        path: P,
+        size: (usize, usize, usize),
+        format: wgpu::TextureFormat,
+        usage: wgpu::TextureUsages,
+        ty: TextureType,
+    ) -> Self {
+        let gpu_handle: GpuHandle = gpu_handle.into();
+
+        let name: Arc<str> = Arc::from(util::path_name_to_string(&path).into_boxed_str());
+
+        let texture = Self::new(gpu_handle.clone(), name, size, 1, format, usage, ty);
+
+        let parent_path = std::env::current_dir().unwrap();
+        let path = parent_path.join(path);
+
+        let bytes = std::fs::read(path).expect("Failed to read texture from path");
+
+        let bytes_per_pixel = format.block_copy_size(None).unwrap();
+        let bytes_per_row = bytes_per_pixel * (size.0 as u32);
+
+        let rows_per_image = match ty.dimension() {
+            wgpu::TextureDimension::D3 => Some(size.1 as u32),
+            _ => None,
+        };
+
+        gpu_handle.queue.write_texture(
+            texture.inner.as_image_copy(),
+            &bytes,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(bytes_per_row),
+                rows_per_image,
+            },
+            wgpu::Extent3d {
+                width: size.0 as u32,
+                height: size.1 as u32,
+                depth_or_array_layers: size.2 as u32,
+            },
+        );
+
+        texture
+    }
+
     pub fn new(
         gpu_handle: impl Into<GpuHandle>,
         name: Arc<str>,

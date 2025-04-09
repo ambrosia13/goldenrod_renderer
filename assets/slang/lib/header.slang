@@ -50,6 +50,12 @@ public struct Camera {
         float3 worldSpacePos = fromScreenSpace(screenSpacePos, this.inverseViewProjectionMatrix);
         return worldSpacePos - this.position;
     }
+
+    public float3 viewDir(float2 texcoord) {
+        float3 screenSpacePos = float3(texcoord, 1.0);
+        float3 sceneSpacePos = this.screenToScene(screenSpacePos);
+        return normalize(sceneSpacePos);
+    }
 }
 
 public struct View {
@@ -85,4 +91,15 @@ public float2 getTaaOffset(uint frame) {
     };
 
     return taaOffsets[frame % 8];
+}
+
+public float3 xyzToRgb(float3 xyz) {
+    return mul(
+        xyz,
+        float3x3(
+            3.2404542,-0.9692660, 0.0556434,
+            -1.5371385, 1.8760108,-0.2040259,
+            -0.4985314, 0.0415560, 1.0572252
+        )
+    );
 }

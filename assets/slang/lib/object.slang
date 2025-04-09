@@ -55,6 +55,13 @@ public struct Sphere: Hittable {
     public float radius;
     public uint materialIndex;
 
+    // For when we want a sphere not related to the material path tracing
+    public __init(float3 position, float radius) {
+        this.position = position;
+        this.radius = radius;
+        this.materialIndex = uint(-1);
+    }
+
     public bool isUnhittable() {
         return this.radius == 0.0;
     }
@@ -86,8 +93,6 @@ public struct Sphere: Hittable {
                 float3 outwardNormal = normalize(hitPosition - this.position);
 
                 float dirDotNormal = dot(ray.dir, outwardNormal);
-                bool frontFace = dirDotNormal < 0.0;
-
                 float3 normal = outwardNormal * -sign(dirDotNormal);
 
                 hit.success = true;
@@ -102,16 +107,45 @@ public struct Sphere: Hittable {
 }
 
 public struct Aabb: Hittable {
-    public float3 min;
-    public float3 max;
+    public float3 boundsMin;
+    public float3 boundsMax;
     public uint materialIndex;
 
     public bool isUnhittable() {
-        return all(this.max > this.min);
+        return any(this.boundsMax <= this.boundsMin);
     }
 
     public Hit getHit(Ray ray) {
         Hit hit;
+        hit.materialIndex = this.materialIndex;
+
+        bool inside = all(clamp(ray.pos, this.boundsMin, this.boundsMax) == ray.pos);
+
+        float3 tMin = (this.boundsMin - ray.pos) / ray.dir;
+        float3 tMax = (this.boundsMax - ray.pos) / ray.dir;
+
+        float3 t1 = min(tMin, tMax);
+        float3 t2 = max(tMin, tMax);
+
+        float tNear = max3(t1.x, t1.y, t1.z);
+        float tFar = min3(t2.x, t2.y, t2.z);
+
+        if (!inside) {
+            hit.success = !(tNear >= tFar || tFar <= 0.0);
+            hit.distance = tNear;
+
+            bool3 eq = t1 == float3(tNear);
+            hit.normal = float3(float(eq.x), float(eq.y), float(eq.z)) * sign(-ray.dir);
+        } else {
+            hit.success = true;
+            hit.distance = tFar;
+            
+            bool3 eq = t2 == float3(tFar);
+            hit.normal = float3(float(eq.x), float(eq.y), float(eq.z)) * sign(-ray.dir);
+        }
+
+        hit.position = ray.pos + ray.dir * hit.distance;
+
         return hit;
     }
 }

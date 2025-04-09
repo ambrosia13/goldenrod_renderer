@@ -27,6 +27,7 @@ pub struct PathtracePass {
     screen_binding: Binding,
     objects_binding: Binding,
     texture_binding: Binding,
+    lut_binding: Binding,
 
     shader: Shader,
     pipeline_layout: wgpu::PipelineLayout,
@@ -60,6 +61,8 @@ impl PathtracePass {
             &previous_color_texture,
         );
 
+        let lut_binding = Self::create_lut_binding(gpu_handle.clone());
+
         let pipeline_layout =
             gpu_handle
                 .device
@@ -69,6 +72,7 @@ impl PathtracePass {
                         screen_binding.bind_group_layout(),
                         objects_binding.bind_group_layout(),
                         texture_binding.bind_group_layout(),
+                        lut_binding.bind_group_layout(),
                     ],
                     push_constant_ranges: &[],
                 });
@@ -84,6 +88,7 @@ impl PathtracePass {
             screen_binding,
             objects_binding,
             texture_binding,
+            lut_binding,
             shader,
             pipeline_layout,
             pipeline,
@@ -112,6 +117,7 @@ impl PathtracePass {
         compute_pass.set_bind_group(0, self.screen_binding.bind_group(), &[]);
         compute_pass.set_bind_group(1, self.objects_binding.bind_group(), &[]);
         compute_pass.set_bind_group(2, self.texture_binding.bind_group(), &[]);
+        compute_pass.set_bind_group(3, self.lut_binding.bind_group(), &[]);
 
         compute_pass.set_pipeline(&self.pipeline);
 
@@ -131,6 +137,40 @@ impl PathtracePass {
         drop(compute_pass);
 
         time_query.write_end_timestamp(encoder);
+    }
+
+    fn create_lut_binding(gpu_handle: GpuHandle) -> Binding {
+        let wavelength_to_xyz_texture = Texture::load_raw(
+            gpu_handle.clone(),
+            "assets/textures/wavelength_to_xyz.bin",
+            (471, 1, 1),
+            wgpu::TextureFormat::Rgba32Float,
+            wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
+            TextureType::Texture1d,
+        );
+
+        let rgb_to_spectral_intensity_texture = Texture::load_raw(
+            gpu_handle.clone(),
+            "assets/textures/rgb_to_spectral_intensity.bin",
+            (81, 1, 1),
+            wgpu::TextureFormat::Rgba32Float,
+            wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
+            TextureType::Texture1d,
+        );
+
+        Binding::new(
+            gpu_handle,
+            &[
+                wavelength_to_xyz_texture.bind_storage(
+                    &wavelength_to_xyz_texture.view(0..1, 0..1),
+                    wgpu::StorageTextureAccess::ReadWrite,
+                ),
+                rgb_to_spectral_intensity_texture.bind_storage(
+                    &rgb_to_spectral_intensity_texture.view(0..1, 0..1),
+                    wgpu::StorageTextureAccess::ReadWrite,
+                ),
+            ],
+        )
     }
 
     fn create_screen_binding(
