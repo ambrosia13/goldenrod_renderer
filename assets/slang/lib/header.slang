@@ -103,3 +103,11 @@ public float3 xyzToRgb(float3 xyz) {
         )
     );
 }
+
+public float pow2(float x) {
+    return x * x;
+}
+
+public float3 pow2(float3 x) {
+    return x * x;
+}

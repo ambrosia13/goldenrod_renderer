@@ -15,12 +15,8 @@ public struct Random {
         state = frameCount + 1;
     }
 
-    public __init(in Screen screen, uint2 fragCoord) {
-        state = 
-            screen.view.width * 
-            screen.view.height * 
-            (screen.view.frameCount + 1) *
-            (fragCoord.x + fragCoord.y * screen.view.width);
+    public __init(in uint frameCount, uint id) {
+        state = frameCount + id + 1;
     }
 
     [mutating]

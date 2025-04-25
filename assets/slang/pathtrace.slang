@@ -7,6 +7,7 @@ import lib.object;
 import lib.space;
 import lib.noise;
 import lib.spectrum;
+import lib.atmosphere;
 
 struct Textures {
     RWTexture2D<float4> current;
@@ -35,7 +36,7 @@ float pathtrace(Ray ray, float wavelength, in Spectrum spectrum, in Objects obje
     float throughput = 1.0;
     float radiance = 0.0;
 
-    const int maxBounces = 5;
+    const int maxBounces = 100;
 
     for (int i = 0; i < maxBounces; ++i) {
         Hit hit = objects.getHit(ray);
@@ -53,6 +54,16 @@ float pathtrace(Ray ray, float wavelength, in Spectrum spectrum, in Objects obje
 
         radiance += throughput * spectrum.rgbToSpectralRadiance(wavelength, material.getEmission());
         throughput *= brdf;
+
+        // russian roulette path termination
+        // probability is higher the lower the ray energy (throughput) is
+        float inverseTerminationProbability = clamp(throughput, 0.0, 1.0);
+        if (random.getFloat() > inverseTerminationProbability) {
+            break;
+        }
+
+        // compensate for the energy lost with the terminated paths
+        throughput *= 1.0 / inverseTerminationProbability;
         
         ray = nextRay;
     }
@@ -71,6 +82,7 @@ void compute(
 
     uint3 globalInvocationId: SV_DispatchThreadID,
     uint3 localInvocationId: SV_GroupThreadID,
+    uint localInvocationIndex: SV_GroupIndex,
 ) {
     if (globalInvocationId.x >= screen.view.width || globalInvocationId.y >= screen.view.height) {
         return;
@@ -92,7 +104,8 @@ void compute(
     float wavelength = spectrum.generateWavelength(random);
     float radiance = pathtrace(ray, wavelength, spectrum, objects, random);
 
-    float3 color = spectrum.spectralRadianceToRgb(wavelength, radiance);
+    //float3 color = spectrum.spectralRadianceToRgb(wavelength, radiance);
+    float3 color = spectrum.spectralRadianceToRgb(wavelength, transmittance(ray, wavelength, random));
 
     float4 previousSample = textures.previous.Load(int3(globalInvocationId.xy, 0));
     float3 previousColor = previousSample.rgb;
