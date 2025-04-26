@@ -45,10 +45,10 @@ pub struct Objects {
 
 impl Objects {
     pub fn init(mut commands: Commands) {
-        let materials = Vec::new();
-        let spheres = Vec::new();
-        let aabbs = Vec::new();
-        let triangles = Vec::new();
+        let materials = vec![Material::null()];
+        let spheres = vec![Sphere::null()];
+        let aabbs = vec![Aabb::null()];
+        let triangles = vec![Triangle::null()];
 
         commands.insert_resource(Objects {
             materials,

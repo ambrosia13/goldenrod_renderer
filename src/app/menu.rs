@@ -380,10 +380,11 @@ impl Menu {
 
                     ui.heading("Objects");
 
-                    ui.label(format!("Material count: {}", objects.materials.len()));
-                    ui.label(format!("Sphere count: {}", objects.spheres.len()));
-                    ui.label(format!("AABB count: {}", objects.aabbs.len()));
-                    ui.label(format!("Triangle count: {}", objects.triangles.len()));
+                    // Subtract 1 from the length because we have an extra "null" element in each array
+                    ui.label(format!("Material count: {}", objects.materials.len() - 1));
+                    ui.label(format!("Sphere count: {}", objects.spheres.len() - 1));
+                    ui.label(format!("AABB count: {}", objects.aabbs.len() - 1));
+                    ui.label(format!("Triangle count: {}", objects.triangles.len() - 1));
 
                     ui.separator();
 
