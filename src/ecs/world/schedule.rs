@@ -70,8 +70,7 @@ impl Default for ScheduleRunner {
             menu::Menu::init,
             object::Objects::init,
             camera::Camera::init,
-            camera::CameraBuffer::init,
-            camera::ViewBuffer::init,
+            camera::ScreenBinding::init,
         ));
 
         let mut update_main = Schedule::new(UpdateMainSchedule);
@@ -79,8 +78,7 @@ impl Default for ScheduleRunner {
             menu::Menu::update,
             object::Objects::update,
             camera::Camera::update,
-            camera::CameraBuffer::update,
-            camera::ViewBuffer::update,
+            camera::ScreenBinding::update,
         ));
 
         let mut post_update_main = Schedule::new(PostUpdateMainSchedule);

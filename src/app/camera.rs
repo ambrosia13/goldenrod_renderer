@@ -6,6 +6,7 @@ use bevy_ecs::{
 use glam::{DVec2, Mat3, Mat4, Quat, Vec3};
 use gpu_bytes::AsStd140;
 use gpu_bytes_derive::{AsStd140, AsStd430};
+use wgpu::util::DeviceExt;
 use winit::{dpi::PhysicalSize, keyboard::KeyCode};
 
 use crate::render::{buffer::Buffer, RenderState, WindowResizeEvent};
@@ -188,35 +189,101 @@ impl Camera {
     }
 }
 
-pub struct ScreenBindGroup {
-    pub camera: CameraBuffer,
-    pub view: ViewBuffer,
-}
-
 #[derive(Resource)]
-pub struct CameraBuffer {
-    pub data: CameraUniform,
-    pub buffer: Buffer,
+pub struct ScreenBinding {
+    pub camera_uniform: CameraUniform,
+    pub view_uniform: ViewUniform,
+
+    pub camera_buffer: wgpu::Buffer,
+    pub view_buffer: wgpu::Buffer,
+
+    pub bind_group_layout: wgpu::BindGroupLayout,
+    pub bind_group: wgpu::BindGroup,
 }
 
-impl CameraBuffer {
+impl ScreenBinding {
     pub fn init(mut commands: Commands, render_state: Res<RenderState>) {
-        let data = CameraUniform::default();
+        // use default values when creating
+        let camera_uniform = CameraUniform::default();
+        let view_uniform = ViewUniform::default();
 
-        commands.insert_resource(CameraBuffer {
-            buffer: Buffer::with_data(
-                &render_state.gpu_handle,
-                "camera_buffer",
-                data.as_std140().as_slice(),
-                wgpu::BufferUsages::UNIFORM,
-            ),
-            data: CameraUniform::default(),
-        });
+        let camera_buffer =
+            render_state
+                .gpu_handle
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Camera Buffer"),
+                    contents: camera_uniform.as_std140().as_slice(),
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                });
+
+        let view_buffer =
+            render_state
+                .gpu_handle
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("View Buffer"),
+                    contents: view_uniform.as_std140().as_slice(),
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                });
+
+        let (bind_group_layout, bind_group) = wgpu_util::binding::create_sequential_linked(
+            &render_state.gpu_handle.device,
+            "Screen Binding",
+            &[
+                wgpu_util::binding::BindingEntry {
+                    binding_type: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                    resource: camera_buffer.as_entire_binding(),
+                },
+                wgpu_util::binding::BindingEntry {
+                    binding_type: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                    resource: view_buffer.as_entire_binding(),
+                },
+            ],
+        );
+
+        let screen_binding = Self {
+            camera_uniform,
+            view_uniform,
+            camera_buffer,
+            view_buffer,
+            bind_group_layout,
+            bind_group,
+        };
+
+        commands.insert_resource(screen_binding);
     }
 
-    pub fn update(mut buffer: ResMut<CameraBuffer>, camera: Res<Camera>) {
-        buffer.data.update_from(&camera);
-        buffer.buffer.write(buffer.data.as_std140().as_slice(), 0);
+    pub fn update(
+        render_state: Res<RenderState>,
+        mut screen_binding: ResMut<ScreenBinding>,
+        camera: Res<Camera>,
+    ) {
+        screen_binding.camera_uniform.update_from(&camera);
+        wgpu_util::buffer::write_slice(
+            &render_state.gpu_handle.queue,
+            &screen_binding.camera_buffer,
+            screen_binding.camera_uniform.as_std140().as_slice(),
+            0,
+        );
+
+        screen_binding.view_uniform.update_from(&render_state);
+        wgpu_util::buffer::write_slice(
+            &render_state.gpu_handle.queue,
+            &screen_binding.view_buffer,
+            screen_binding.view_uniform.as_std140().as_slice(),
+            0,
+        );
     }
 }
 
@@ -266,33 +333,6 @@ impl CameraUniform {
 
         self.right = camera.right();
         self.up = camera.up();
-    }
-}
-
-#[derive(Resource)]
-pub struct ViewBuffer {
-    pub data: ViewUniform,
-    pub buffer: Buffer,
-}
-
-impl ViewBuffer {
-    pub fn init(mut commands: Commands, render_state: Res<RenderState>) {
-        let data = ViewUniform::default();
-
-        commands.insert_resource(ViewBuffer {
-            buffer: Buffer::with_data(
-                &render_state.gpu_handle,
-                "screen_view_buffer",
-                data.as_std140().as_slice(),
-                wgpu::BufferUsages::UNIFORM,
-            ),
-            data: ViewUniform::default(),
-        });
-    }
-
-    pub fn update(mut buffer: ResMut<ViewBuffer>, render_state: Res<RenderState>) {
-        buffer.data.update_from(&render_state);
-        buffer.buffer.write(buffer.data.as_std140().as_slice(), 0);
     }
 }
 
