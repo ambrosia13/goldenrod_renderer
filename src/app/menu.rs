@@ -76,7 +76,7 @@ impl Menu {
         mut camera: ResMut<Camera>,
         time: Res<Time>,
         objects: Res<Objects>,
-        (mut material_push_events, mut material_pop_events): (
+        (mut material_push_events, _material_pop_events): (
             EventWriter<MaterialPushEvent>,
             EventWriter<MaterialPopEvent>,
         ),
@@ -107,7 +107,7 @@ impl Menu {
         }
 
         if input.keys.just_pressed(KeyCode::KeyR) {
-            shader_recompile_events.send(ShaderRecompileEvent);
+            shader_recompile_events.write(ShaderRecompileEvent);
         }
 
         let mut fov_sensitivity = 2.5;
@@ -157,7 +157,7 @@ impl Menu {
                     menu.settings.fullscreen = fullscreen_button.clicked();
 
                     if ui.button("Recompile shaders").clicked() {
-                        shader_recompile_events.send(ShaderRecompileEvent);
+                        shader_recompile_events.write(ShaderRecompileEvent);
                     }
 
                     ui.separator();

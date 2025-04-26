@@ -15,7 +15,7 @@ use crate::{
     ecs::event,
     render::{
         shader::{self, ShaderRecompileEvent},
-        texture, WindowResizeEvent,
+        WindowResizeEvent,
     },
 };
 
@@ -159,8 +159,6 @@ impl Default for ScheduleRunner {
 }
 
 impl ScheduleRunner {
-    pub fn add_observers(world: &mut World) {}
-
     pub fn startup(&mut self, world: &mut World) {
         self.init_main.run(world);
         self.init_render.run(world);

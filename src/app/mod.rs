@@ -16,7 +16,7 @@ use winit::{
 use crate::{
     ecs::{world::schedule::ScheduleRunner, Wrapper},
     egui::EguiRenderState,
-    render::{timestamp::TimeQuery, FrameData, RenderState, WindowResizeEvent},
+    render::{FrameData, RenderState, WindowResizeEvent},
 };
 
 pub mod camera;
@@ -104,16 +104,11 @@ impl ApplicationHandler for App {
 
     fn device_event(
         &mut self,
-        event_loop: &ActiveEventLoop,
-        device_id: winit::event::DeviceId,
+        _event_loop: &ActiveEventLoop,
+        _device_id: winit::event::DeviceId,
         event: winit::event::DeviceEvent,
     ) {
-        let AppState::Init {
-            window,
-            world,
-            schedule_runner,
-        } = &mut self.state
-        else {
+        let AppState::Init { world, .. } = &mut self.state else {
             return;
         };
 
