@@ -6,12 +6,12 @@ use bevy_ecs::{
 use glam::Vec2;
 use gpu_bytes::AsStd140;
 use gpu_bytes_derive::AsStd140;
+use wgpu::util::DeviceExt;
 
 use crate::render::binding::{Binding, BindingEntry};
 use crate::render::{
-    buffer::Buffer,
     shader::{Shader, ShaderRecompileEvent, ShaderSource},
-    texture::{Texture, TextureType},
+    texture::Texture,
     FrameData, GpuHandle, RenderState, WindowResizeEvent,
 };
 
@@ -46,11 +46,12 @@ impl FinalUniform {
 pub struct FinalPass {
     sampler: wgpu::Sampler,
 
-    uniform_buffer: Buffer,
+    uniform_buffer: wgpu::Buffer,
 
     texture_binding: Binding,
-    camera_response_binding: Binding,
-    uniform_binding: Binding,
+
+    camera_response_bind_group: wgpu::BindGroup,
+    uniform_bind_group: wgpu::BindGroup,
 
     vertex_shader: Shader,
     fragment_shader: Shader,
@@ -72,36 +73,32 @@ impl FinalPass {
 
         let sampler = gpu_handle.device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("final_input_texture_sampler"),
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            lod_min_clamp: 0.0,
-            lod_max_clamp: 0.0,
-            compare: None,
-            anisotropy_clamp: 1,
-            border_color: None,
+            ..Default::default()
         });
 
         let texture_binding =
             Self::create_texture_binding(gpu_handle.clone(), &sampler, input_texture);
 
         let data = FinalUniform::from_render_state(render_state).as_std140();
-        let uniform_buffer = Buffer::with_data(
-            gpu_handle.clone(),
-            "final_uniform_buffer",
-            data.as_slice(),
-            wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        );
+        let uniform_buffer =
+            render_state
+                .gpu_handle
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("final_uniform_buffer"),
+                    contents: data.as_slice(),
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                });
 
-        let uniform_binding = Binding::new(
-            gpu_handle.clone(),
-            &[uniform_buffer.bind_uniform(0, None, false)],
-        );
+        let (uniform_bind_group_layout, uniform_bind_group) =
+            wgputil::binding::create_sequential_linked(
+                &render_state.gpu_handle.device,
+                "uniform_binding",
+                &[wgputil::binding::bind_buffer_uniform(&uniform_buffer)],
+            );
 
-        let camera_response_binding = Self::create_lut_binding(gpu_handle.clone());
+        let (camera_response_bind_group_layout, camera_response_bind_group) =
+            Self::create_lut_binding(gpu_handle.clone());
 
         let pipeline_layout =
             gpu_handle
@@ -110,8 +107,8 @@ impl FinalPass {
                     label: Some("final_pipeline_layout"),
                     bind_group_layouts: &[
                         texture_binding.bind_group_layout(),
-                        camera_response_binding.bind_group_layout(),
-                        uniform_binding.bind_group_layout(),
+                        &camera_response_bind_group_layout,
+                        &uniform_bind_group_layout,
                     ],
                     push_constant_ranges: &[],
                 });
@@ -126,64 +123,96 @@ impl FinalPass {
             sampler,
             texture_binding,
             uniform_buffer,
-            uniform_binding,
+            uniform_bind_group,
+            camera_response_bind_group,
             time_query_index,
             gpu_handle,
-            camera_response_binding,
             vertex_shader,
             fragment_shader,
             pipeline_layout,
         }
     }
 
-    fn create_lut_binding(gpu_handle: GpuHandle) -> Binding {
-        let camera_response_red = Texture::load_raw(
-            gpu_handle.clone(),
-            "assets/textures/camera_response/Kodachrome-64CDRed.bin",
-            (1024, 1, 1),
-            wgpu::TextureFormat::R32Float,
-            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            TextureType::Texture1d,
-        );
+    fn create_lut_binding(gpu_handle: GpuHandle) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
+        let parent_dir = std::env::current_dir().unwrap();
 
-        let camera_response_red_view = camera_response_red.view(0..1, 0..1);
+        fn create_descriptor(name: &str) -> wgpu::TextureDescriptor<'_> {
+            wgpu::TextureDescriptor {
+                label: Some(name),
+                size: wgpu::Extent3d {
+                    width: 1024,
+                    height: 1,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D1,
+                format: wgpu::TextureFormat::R32Float,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            }
+        }
 
-        let camera_response_green = Texture::load_raw(
-            gpu_handle.clone(),
-            "assets/textures/camera_response/Kodachrome-64CDGreen.bin",
-            (1024, 1, 1),
-            wgpu::TextureFormat::R32Float,
-            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            TextureType::Texture1d,
-        );
+        let camera_response_red = wgputil::texture::load_raw(
+            &gpu_handle.device,
+            &gpu_handle.queue,
+            parent_dir.join("assets/textures/camera_response/Kodachrome-64CDRed.bin"),
+            &create_descriptor("camera_response_red"),
+        )
+        .expect("Failed to read camera response texture");
+        let camera_response_red_view =
+            camera_response_red.create_view(&wgpu::TextureViewDescriptor::default());
 
-        let camera_response_green_view = camera_response_green.view(0..1, 0..1);
+        let camera_response_green = wgputil::texture::load_raw(
+            &gpu_handle.device,
+            &gpu_handle.queue,
+            parent_dir.join("assets/textures/camera_response/Kodachrome-64CDGreen.bin"),
+            &create_descriptor("camera_response_green"),
+        )
+        .expect("Failed to read camera response texture");
+        let camera_response_green_view =
+            camera_response_green.create_view(&wgpu::TextureViewDescriptor::default());
 
-        let camera_response_blue = Texture::load_raw(
-            gpu_handle.clone(),
-            "assets/textures/camera_response/Kodachrome-64CDBlue.bin",
-            (1024, 1, 1),
-            wgpu::TextureFormat::R32Float,
-            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            TextureType::Texture1d,
-        );
-
-        let camera_response_blue_view = camera_response_blue.view(0..1, 0..1);
+        let camera_response_blue = wgputil::texture::load_raw(
+            &gpu_handle.device,
+            &gpu_handle.queue,
+            parent_dir.join("assets/textures/camera_response/Kodachrome-64CDBlue.bin"),
+            &create_descriptor("camera_response_blue"),
+        )
+        .expect("Failed to read camera response texture");
+        let camera_response_blue_view =
+            camera_response_blue.create_view(&wgpu::TextureViewDescriptor::default());
 
         let camera_response_sampler = gpu_handle.device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("final_camera_response_sampler"),
+            label: Some("camera_response_sampler"),
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
 
-        Binding::new(
-            gpu_handle,
+        wgputil::binding::create_sequential_linked(
+            &gpu_handle.device,
+            "camera_response_binding",
             &[
-                camera_response_red.bind_view(&camera_response_red_view),
-                camera_response_green.bind_view(&camera_response_green_view),
-                camera_response_blue.bind_view(&camera_response_blue_view),
-                BindingEntry {
+                wgputil::binding::bind_texture_view(
+                    &camera_response_red_view,
+                    wgputil::texture::sample_type(&gpu_handle.device, &camera_response_red)
+                        .unwrap(),
+                    wgpu::TextureViewDimension::D1,
+                ),
+                wgputil::binding::bind_texture_view(
+                    &camera_response_green_view,
+                    wgputil::texture::sample_type(&gpu_handle.device, &camera_response_green)
+                        .unwrap(),
+                    wgpu::TextureViewDimension::D1,
+                ),
+                wgputil::binding::bind_texture_view(
+                    &camera_response_blue_view,
+                    wgputil::texture::sample_type(&gpu_handle.device, &camera_response_blue)
+                        .unwrap(),
+                    wgpu::TextureViewDimension::D1,
+                ),
+                wgputil::binding::BindingEntry {
                     binding_type: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                     resource: wgpu::BindingResource::Sampler(&camera_response_sampler),
@@ -285,8 +314,8 @@ impl FinalPass {
             });
 
         render_pass.set_bind_group(0, self.texture_binding.bind_group(), &[]);
-        render_pass.set_bind_group(1, self.camera_response_binding.bind_group(), &[]);
-        render_pass.set_bind_group(2, self.uniform_binding.bind_group(), &[]);
+        render_pass.set_bind_group(1, &self.camera_response_bind_group, &[]);
+        render_pass.set_bind_group(2, &self.uniform_bind_group, &[]);
         render_pass.set_pipeline(&self.pipeline);
 
         render_pass.draw(0..6, 0..1);
@@ -333,7 +362,12 @@ impl FinalPass {
         }
 
         let data = FinalUniform::from_render_state(&render_state);
-        display.uniform_buffer.write(data.as_std140().as_slice(), 0);
+        wgputil::buffer::write_slice(
+            &render_state.gpu_handle.queue,
+            &display.uniform_buffer,
+            data.as_std140().as_slice(),
+            0,
+        );
 
         display.draw(&mut frame, &mut profiler);
     }

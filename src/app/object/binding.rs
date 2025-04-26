@@ -47,29 +47,15 @@ impl ObjectBinding {
         let aabbs_buffer = create_buffer("aabbs_buffer", aabbs.as_std430().as_slice());
         let triangles_buffer = create_buffer("triangles_buffer", triangles.as_std430().as_slice());
 
-        fn binding_entry(buffer: &wgpu::Buffer) -> wgpu_util::binding::BindingEntry<'_> {
-            wgpu_util::binding::BindingEntry {
-                binding_type: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-                resource: buffer.as_entire_binding(),
-            }
-        }
-
-        let entries = &[
-            binding_entry(&materials_buffer),
-            binding_entry(&spheres_buffer),
-            binding_entry(&aabbs_buffer),
-            binding_entry(&triangles_buffer),
-        ];
-
-        let (bind_group_layout, bind_group) = wgpu_util::binding::create_sequential_linked(
+        let (bind_group_layout, bind_group) = wgputil::binding::create_sequential_linked(
             &render_state.gpu_handle.device,
             "object_binding",
-            entries,
+            &[
+                wgputil::binding::bind_buffer_storage(&materials_buffer, true),
+                wgputil::binding::bind_buffer_storage(&spheres_buffer, true),
+                wgputil::binding::bind_buffer_storage(&aabbs_buffer, true),
+                wgputil::binding::bind_buffer_storage(&triangles_buffer, true),
+            ],
         );
 
         let object_binding = Self {
@@ -128,7 +114,7 @@ impl ObjectBinding {
                 usage,
             });
 
-        object_binding.bind_group = wgpu_util::binding::create_sequential_with_layout(
+        object_binding.bind_group = wgputil::binding::create_sequential_with_layout(
             device,
             "object_binding",
             &object_binding.bind_group_layout,

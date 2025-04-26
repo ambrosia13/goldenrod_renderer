@@ -1237,7 +1237,7 @@ dependencies = [
  "pollster",
  "regex",
  "wgpu",
- "wgpu_util",
+ "wgputil",
  "winit",
 ]
 
@@ -3618,9 +3618,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "wgpu_util"
+name = "wgputil"
 version = "0.1.0"
-source = "git+https://github.com/ambrosia13/wgpu_util.git#4926bb4e72714f941df61e8f135ed58539b5f9cb"
+source = "git+https://github.com/ambrosia13/wgputil.git#1fa7390d22e41e76a64192e14562645fd9692e9a"
 dependencies = [
  "bytemuck",
  "image",

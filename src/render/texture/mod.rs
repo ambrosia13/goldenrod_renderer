@@ -1,16 +1,10 @@
 use std::{ops::Range, path::Path, sync::Arc};
 
-use bevy_ecs::{
-    component::Component,
-    entity::Entity,
-    event::{EventReader, EventWriter},
-    query::With,
-    system::{Query, Res},
-};
+use bevy_ecs::component::Component;
 
-use crate::{app::menu::Menu, util};
+use crate::util;
 
-use super::{binding::BindingEntry, GpuHandle, WindowResizeEvent, WGPU_FEATURES};
+use super::{binding::BindingEntry, GpuHandle, WGPU_FEATURES};
 
 pub mod image;
 

@@ -49,28 +49,12 @@ impl ScreenBinding {
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 });
 
-        let (bind_group_layout, bind_group) = wgpu_util::binding::create_sequential_linked(
+        let (bind_group_layout, bind_group) = wgputil::binding::create_sequential_linked(
             &render_state.gpu_handle.device,
             "screen_binding",
             &[
-                wgpu_util::binding::BindingEntry {
-                    binding_type: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                    resource: camera_buffer.as_entire_binding(),
-                },
-                wgpu_util::binding::BindingEntry {
-                    binding_type: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                    resource: view_buffer.as_entire_binding(),
-                },
+                wgputil::binding::bind_buffer_uniform(&camera_buffer),
+                wgputil::binding::bind_buffer_uniform(&view_buffer),
             ],
         );
 
@@ -92,7 +76,7 @@ impl ScreenBinding {
         camera: Res<Camera>,
     ) {
         screen_binding.camera_uniform.update_from(&camera);
-        wgpu_util::buffer::write_slice(
+        wgputil::buffer::write_slice(
             &render_state.gpu_handle.queue,
             &screen_binding.camera_buffer,
             screen_binding.camera_uniform.as_std140().as_slice(),
@@ -100,7 +84,7 @@ impl ScreenBinding {
         );
 
         screen_binding.view_uniform.update_from(&render_state);
-        wgpu_util::buffer::write_slice(
+        wgputil::buffer::write_slice(
             &render_state.gpu_handle.queue,
             &screen_binding.view_buffer,
             screen_binding.view_uniform.as_std140().as_slice(),
