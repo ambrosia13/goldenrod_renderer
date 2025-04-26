@@ -1,6 +1,7 @@
+use bevy_ecs::resource::Resource;
 use bevy_ecs::{
     event::EventReader,
-    system::{Commands, Res, ResMut, Resource},
+    system::{Commands, Res, ResMut},
 };
 use glam::UVec3;
 

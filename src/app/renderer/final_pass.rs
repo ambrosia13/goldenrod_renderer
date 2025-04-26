@@ -1,13 +1,15 @@
+use bevy_ecs::resource::Resource;
 use bevy_ecs::{
     event::EventReader,
-    system::{Commands, Res, ResMut, Resource},
+    system::{Commands, Res, ResMut},
 };
 use glam::Vec2;
 use gpu_bytes::AsStd140;
 use gpu_bytes_derive::AsStd140;
 
+use crate::render::binding::{Binding, BindingEntry};
 use crate::render::{
-    binding::{Binding, BindingEntry},
+    self,
     buffer::Buffer,
     shader::{Shader, ShaderRecompileEvent, ShaderSource},
     texture::{Texture, TextureType},

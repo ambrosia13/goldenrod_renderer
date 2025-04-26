@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
-use bevy_ecs::system::{ResMut, Resource};
+use bevy_ecs::resource::Resource;
+use bevy_ecs::system::ResMut;
 
 #[derive(Resource, Debug)]
 pub struct Time {

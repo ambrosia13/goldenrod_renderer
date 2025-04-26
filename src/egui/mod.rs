@@ -1,4 +1,4 @@
-use bevy_ecs::system::Resource;
+use bevy_ecs::resource::Resource;
 use egui_wgpu::{
     wgpu::{
         CommandEncoder, Device, Queue, RenderPassColorAttachment, RenderPassDescriptor, StoreOp,

@@ -1,6 +1,7 @@
+use bevy_ecs::resource::Resource;
 use bevy_ecs::{
     event::EventReader,
-    system::{Commands, Res, ResMut, Resource},
+    system::{Commands, Res, ResMut},
 };
 use glam::{DVec2, Mat3, Mat4, Quat, Vec3};
 use gpu_bytes::AsStd140;
@@ -184,6 +185,11 @@ impl Camera {
             camera.reconfigure_aspect(render_state.get_effective_size());
         }
     }
+}
+
+pub struct ScreenBindGroup {
+    pub camera: CameraBuffer,
+    pub view: ViewBuffer,
 }
 
 #[derive(Resource)]

@@ -4,6 +4,26 @@ use bevy_ecs::{entity::Entity, world::World};
 
 use super::GpuHandle;
 
+pub fn create_linked(
+    device: &wgpu::Device,
+    label: &str,
+    layout_entries: &[wgpu::BindGroupLayoutEntry],
+    entries: &[wgpu::BindGroupEntry],
+) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
+    let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some(label),
+        entries: layout_entries,
+    });
+
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some(label),
+        layout: &layout,
+        entries,
+    });
+
+    (layout, bind_group)
+}
+
 pub struct BindingEntry<'a> {
     pub binding_type: wgpu::BindingType,
     pub count: Option<usize>,

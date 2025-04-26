@@ -1,9 +1,7 @@
 use std::time::Duration;
 
-use bevy_ecs::{
-    system::{Res, ResMut, Resource},
-    world::World,
-};
+use bevy_ecs::resource::Resource;
+use bevy_ecs::world::World;
 
 use super::time::Time;
 

@@ -1,7 +1,5 @@
-use bevy_ecs::{
-    system::{Commands, Resource},
-    world::World,
-};
+use bevy_ecs::resource::Resource;
+use bevy_ecs::{system::Commands, world::World};
 
 use crate::render::{timestamp::TimeQuery, GpuHandle};
 

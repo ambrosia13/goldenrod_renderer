@@ -1,5 +1,5 @@
 use bevy_ecs::{
-    schedule::{IntoSystemConfigs, Schedule, ScheduleLabel},
+    schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel},
     world::World,
 };
 

@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use bevy_ecs::system::Resource;
+use bevy_ecs::resource::Resource;
 
 pub mod event;
 pub mod world;

@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
-use bevy_ecs::system::{ResMut, Resource};
+use bevy_ecs::resource::Resource;
+use bevy_ecs::system::ResMut;
 use glam::DVec2;
 use winit::{
     event::{ElementState, KeyEvent, MouseButton},

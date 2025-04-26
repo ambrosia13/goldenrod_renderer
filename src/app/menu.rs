@@ -5,7 +5,8 @@ use std::{
 
 use bevy_ecs::{
     event::EventWriter,
-    system::{Res, ResMut, Resource},
+    resource::Resource,
+    system::{Res, ResMut},
     world::World,
 };
 use egui::{DragValue, Ui};

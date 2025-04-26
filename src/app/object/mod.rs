@@ -1,6 +1,8 @@
+use bevy_ecs::event::Event;
+use bevy_ecs::resource::Resource;
 use bevy_ecs::{
-    event::{Event, EventReader, EventWriter},
-    system::{Commands, Res, ResMut, Resource},
+    event::{EventReader, EventWriter},
+    system::{Commands, Res, ResMut},
 };
 use glam::Vec3;
 use gpu_bytes::AsStd430;

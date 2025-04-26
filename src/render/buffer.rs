@@ -8,7 +8,7 @@ use super::{binding::BindingEntry, GpuHandle};
 
 #[derive(Component)]
 pub struct Buffer {
-    buffer: wgpu::Buffer,
+    pub buffer: wgpu::Buffer,
     size: usize,
 
     gpu_handle: GpuHandle,

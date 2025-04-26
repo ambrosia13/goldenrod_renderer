@@ -217,17 +217,18 @@ impl Shader {
                 }
             }
             ShaderModuleDescriptor::Spirv(shader_module_descriptor_spir_v) => {
-                let module = unsafe {
-                    gpu_handle
-                        .device
-                        .create_shader_module_spirv(&shader_module_descriptor_spir_v)
-                };
+                todo!("Device::create_shader_module_spirv was deprecated, spirv support now requires spirv extension")
+                // let module = unsafe {
+                //     gpu_handle
+                //         .device
+                //         .create_shader_module_spirv(&shader_module_descriptor_spir_v)
+                // };
 
-                Self {
-                    source,
-                    module,
-                    gpu_handle,
-                }
+                // Self {
+                //     source,
+                //     module,
+                //     gpu_handle,
+                // }
             }
         }
     }
@@ -271,9 +272,11 @@ impl Shader {
                 module
             }
             ShaderModuleDescriptor::Spirv(shader_module_descriptor_spir_v) => unsafe {
-                self.gpu_handle
-                    .device
-                    .create_shader_module_spirv(&shader_module_descriptor_spir_v)
+                todo!("Device::create_shader_module_spirv was deprecated, spirv support now requires spirv extension")
+
+                // self.gpu_handle
+                //     .device
+                //     .create_shader_module_spirv(&shader_module_descriptor_spir_v)
             },
         };
 

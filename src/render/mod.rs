@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use bevy_ecs::{entity::Entity, event::Event, system::Resource};
+use bevy_ecs::{entity::Entity, event::Event, resource::Resource};
 use winit::{dpi::PhysicalSize, window::Window};
 
 pub mod binding;
