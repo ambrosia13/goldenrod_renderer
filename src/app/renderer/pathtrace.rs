@@ -7,7 +7,7 @@ use glam::UVec3;
 
 use crate::app::object::binding::ObjectBinding;
 use crate::{
-    app::{camera::binding::ScreenBinding, object::Objects},
+    app::camera::binding::ScreenBinding,
     render::{
         binding::Binding,
         shader::{Shader, ShaderRecompileEvent, ShaderSource},

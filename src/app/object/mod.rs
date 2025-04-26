@@ -1,14 +1,11 @@
 use bevy_ecs::event::Event;
 use bevy_ecs::resource::Resource;
 use bevy_ecs::{
-    event::{EventReader, EventWriter},
-    system::{Commands, Res, ResMut},
+    event::EventReader,
+    system::{Commands, ResMut},
 };
 use glam::Vec3;
-use gpu_bytes::AsStd430;
 use gpu_bytes_derive::AsStd430;
-
-use crate::render::{buffer::BufferVec, RenderState};
 
 pub mod binding;
 
@@ -65,7 +62,6 @@ impl Objects {
     #[allow(clippy::too_many_arguments)]
     pub fn update(
         mut objects: ResMut<Objects>,
-        render_state: Res<RenderState>,
         mut material_push_events: EventReader<MaterialPushEvent>,
         mut material_pop_events: EventReader<MaterialPopEvent>,
         mut sphere_push_events: EventReader<SpherePushEvent>,
@@ -123,19 +119,6 @@ impl Objects {
     }
 }
 
-pub struct CpuGpuBuffer<T: AsStd430 + Default> {
-    pub data: Vec<T>,
-    pub buffer: BufferVec<T>,
-}
-
-impl<T: AsStd430 + Default> CpuGpuBuffer<T> {
-    pub fn update_buffer(&mut self) -> bool {
-        self.buffer.copy_from(&self.data)
-    }
-}
-
-pub type Materials = CpuGpuBuffer<Material>;
-
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum MaterialType {
@@ -169,8 +152,6 @@ impl Material {
     }
 }
 
-pub type Spheres = CpuGpuBuffer<Sphere>;
-
 #[derive(AsStd430, Default, Clone, Copy, Debug)]
 pub struct Sphere {
     pub center: Vec3,
@@ -187,8 +168,6 @@ impl Sphere {
     }
 }
 
-pub type Aabbs = CpuGpuBuffer<Aabb>;
-
 #[derive(AsStd430, Default, Clone, Copy, Debug)]
 pub struct Aabb {
     pub min: Vec3,
@@ -204,8 +183,6 @@ impl Aabb {
         }
     }
 }
-
-pub type Triangles = CpuGpuBuffer<Triangle>;
 
 #[derive(AsStd430, Default, Clone, Copy, Debug)]
 pub struct Triangle {
