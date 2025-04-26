@@ -7,7 +7,7 @@ use glam::UVec3;
 
 use crate::{
     app::{
-        camera::ScreenBinding,
+        camera::binding::ScreenBinding,
         object::{ObjectUpdateEvent, Objects},
     },
     render::{
