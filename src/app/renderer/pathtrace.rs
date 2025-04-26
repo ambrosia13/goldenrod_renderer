@@ -6,10 +6,7 @@ use bevy_ecs::{
 use glam::UVec3;
 
 use crate::{
-    app::{
-        camera::binding::ScreenBinding,
-        object::{ObjectUpdateEvent, Objects},
-    },
+    app::{camera::binding::ScreenBinding, object::Objects},
     render::{
         binding::Binding,
         shader::{Shader, ShaderRecompileEvent, ShaderSource},
@@ -25,7 +22,6 @@ pub struct PathtracePass {
     pub color_texture: Texture,
     pub previous_color_texture: Texture,
 
-    objects_binding: Binding,
     texture_binding: Binding,
     lut_binding: Binding,
 
@@ -49,8 +45,6 @@ impl PathtracePass {
 
         let (color_texture, previous_color_texture) = Self::create_textures(render_state);
 
-        let objects_binding = Self::create_objects_binding(gpu_handle.clone(), objects);
-
         let texture_binding = Self::create_texture_binding(
             gpu_handle.clone(),
             &color_texture,
@@ -66,7 +60,7 @@ impl PathtracePass {
                     label: Some("pathtrace_pipeline_layout"),
                     bind_group_layouts: &[
                         &screen_binding.bind_group_layout,
-                        objects_binding.bind_group_layout(),
+                        &objects.bind_group_layout,
                         texture_binding.bind_group_layout(),
                         lut_binding.bind_group_layout(),
                     ],
@@ -81,7 +75,6 @@ impl PathtracePass {
         Self {
             color_texture,
             previous_color_texture,
-            objects_binding,
             texture_binding,
             lut_binding,
             shader,
@@ -97,6 +90,7 @@ impl PathtracePass {
         encoder: &mut wgpu::CommandEncoder,
         profiler: &mut RenderProfiler,
         screen_binding: &ScreenBinding,
+        objects: &Objects,
     ) {
         let (_, time_query) = &mut profiler.time_queries[self.time_query_index];
 
@@ -115,7 +109,7 @@ impl PathtracePass {
         });
 
         compute_pass.set_bind_group(0, &screen_binding.bind_group, &[]);
-        compute_pass.set_bind_group(1, self.objects_binding.bind_group(), &[]);
+        compute_pass.set_bind_group(1, &objects.bind_group, &[]);
         compute_pass.set_bind_group(2, self.texture_binding.bind_group(), &[]);
         compute_pass.set_bind_group(3, self.lut_binding.bind_group(), &[]);
 
@@ -288,7 +282,6 @@ impl PathtracePass {
         mut frame: ResMut<FrameData>,
 
         mut resize_events: EventReader<WindowResizeEvent>,
-        mut object_update_events: EventReader<ObjectUpdateEvent>,
         mut shader_recompile_events: EventReader<ShaderRecompileEvent>,
     ) {
         if resize_events.read().count() > 0 {
@@ -304,13 +297,6 @@ impl PathtracePass {
             path_tracer.texture_binding = texture_binding;
         }
 
-        if object_update_events.read().count() > 0 {
-            let objects_binding =
-                Self::create_objects_binding(render_state.gpu_handle.clone(), &objects);
-
-            path_tracer.objects_binding = objects_binding;
-        }
-
         if shader_recompile_events.read().count() > 0 {
             let (shader, pipeline) = Self::create_shader_and_pipeline(
                 render_state.gpu_handle.clone(),
@@ -321,6 +307,6 @@ impl PathtracePass {
             path_tracer.pipeline = pipeline;
         }
 
-        path_tracer.draw(&mut frame.encoder, &mut profiler, &screen_binding);
+        path_tracer.draw(&mut frame.encoder, &mut profiler, &screen_binding, &objects);
     }
 }

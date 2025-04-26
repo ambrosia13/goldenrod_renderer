@@ -34,7 +34,7 @@ impl ScreenBinding {
                 .gpu_handle
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Camera Buffer"),
+                    label: Some("camera_buffer"),
                     contents: camera_uniform.as_std140().as_slice(),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 });
@@ -44,14 +44,14 @@ impl ScreenBinding {
                 .gpu_handle
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("View Buffer"),
+                    label: Some("view_buffer"),
                     contents: view_uniform.as_std140().as_slice(),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 });
 
         let (bind_group_layout, bind_group) = wgpu_util::binding::create_sequential_linked(
             &render_state.gpu_handle.device,
-            "Screen Binding",
+            "screen_binding",
             &[
                 wgpu_util::binding::BindingEntry {
                     binding_type: wgpu::BindingType::Buffer {

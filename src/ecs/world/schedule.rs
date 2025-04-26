@@ -7,9 +7,8 @@ use crate::{
     app::{
         camera, fps, input, menu,
         object::{
-            self, AabbPopEvent, AabbPushEvent, MaterialPopEvent, MaterialPushEvent,
-            ObjectUpdateEvent, SpherePopEvent, SpherePushEvent, TrianglePopEvent,
-            TrianglePushEvent,
+            self, AabbPopEvent, AabbPushEvent, MaterialPopEvent, MaterialPushEvent, SpherePopEvent,
+            SpherePushEvent, TrianglePopEvent, TrianglePushEvent,
         },
         renderer, time,
     },
@@ -127,7 +126,6 @@ impl Default for ScheduleRunner {
             event::init::<AabbPopEvent>,
             event::init::<TrianglePushEvent>,
             event::init::<TrianglePopEvent>,
-            event::init::<ObjectUpdateEvent>,
         ));
 
         let mut update_event = Schedule::new(UpdateEventSchedule);
@@ -142,7 +140,6 @@ impl Default for ScheduleRunner {
             event::update::<AabbPopEvent>,
             event::update::<TrianglePushEvent>,
             event::update::<TrianglePopEvent>,
-            event::update::<ObjectUpdateEvent>,
         ));
 
         Self {

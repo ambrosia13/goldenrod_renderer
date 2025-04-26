@@ -4,9 +4,6 @@ use bevy_ecs::{
     system::{Commands, Res, ResMut},
 };
 use glam::{DVec2, Mat3, Mat4, Quat, Vec3};
-use gpu_bytes::AsStd140;
-use gpu_bytes_derive::{AsStd140, AsStd430};
-use wgpu::util::DeviceExt;
 use winit::{dpi::PhysicalSize, keyboard::KeyCode};
 
 use crate::render::{RenderState, WindowResizeEvent};

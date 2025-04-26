@@ -122,7 +122,7 @@ impl Buffer {
 
 #[derive(Component)]
 pub struct BufferVec<T: AsStd430 + Default> {
-    inner: Buffer,
+    pub inner: Buffer,
     name: String,
     _phantom: PhantomData<T>,
 }
