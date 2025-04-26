@@ -60,6 +60,7 @@ impl Camera {
         self.aspect = window_size.width as f32 / window_size.height as f32;
     }
 
+    #[expect(unused)]
     pub fn look_at(&mut self, target: Vec3) {
         let (rotation, yaw, pitch) = Self::get_rotation_from_view_vector(self.position, target);
 

@@ -9,7 +9,6 @@ use gpu_bytes_derive::AsStd140;
 
 use crate::render::binding::{Binding, BindingEntry};
 use crate::render::{
-    self,
     buffer::Buffer,
     shader::{Shader, ShaderRecompileEvent, ShaderSource},
     texture::{Texture, TextureType},

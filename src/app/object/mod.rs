@@ -149,7 +149,7 @@ impl Objects {
 
         // signal to other systems that we updated the buffers so they need to recreate their bind groups
         if update_materials || update_spheres || update_aabbs || update_triangles {
-            object_update_events.send(ObjectUpdateEvent);
+            object_update_events.write(ObjectUpdateEvent);
         }
     }
 }

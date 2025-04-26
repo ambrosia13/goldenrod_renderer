@@ -13,7 +13,6 @@ pub struct Input {
     pub keys: ButtonInputs<KeyCode>,
     pub mouse_buttons: ButtonInputs<MouseButton>,
     mouse_delta: DVec2,
-    mouse_scroll: f64,
 }
 
 impl Input {
@@ -22,7 +21,6 @@ impl Input {
             keys: ButtonInputs::new(),
             mouse_buttons: ButtonInputs::new(),
             mouse_delta: DVec2::ZERO,
-            mouse_scroll: 0.0,
         }
     }
 
@@ -30,16 +28,9 @@ impl Input {
         self.mouse_delta = DVec2::new(delta_x, delta_y);
     }
 
-    pub fn set_mouse_scroll(&mut self, delta: f64) {
-        self.mouse_scroll = delta;
-    }
-
+    #[expect(unused)]
     pub fn mouse_delta(&self) -> DVec2 {
         self.mouse_delta
-    }
-
-    pub fn mouse_scroll(&self) -> f64 {
-        self.mouse_scroll
     }
 
     pub fn update(&mut self) {
@@ -95,6 +86,7 @@ where
         self.just_pressed.contains(&input)
     }
 
+    #[expect(unused)]
     pub fn just_released(&self, input: T) -> bool {
         self.just_released.contains(&input)
     }

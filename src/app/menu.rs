@@ -1,7 +1,4 @@
-use std::{
-    collections::{LinkedList, VecDeque},
-    sync::Arc,
-};
+use std::{collections::LinkedList, sync::Arc};
 
 use bevy_ecs::{
     event::EventWriter,
