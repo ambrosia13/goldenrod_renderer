@@ -10,6 +10,8 @@ use gpu_bytes_derive::AsStd430;
 
 use crate::render::{buffer::BufferVec, RenderState};
 
+pub mod binding;
+
 #[derive(Event)]
 pub struct MaterialPushEvent(pub Material);
 
@@ -36,52 +38,27 @@ pub struct TrianglePopEvent;
 
 #[derive(Resource)]
 pub struct Objects {
-    pub materials: Materials,
-    pub spheres: Spheres,
-    pub aabbs: Aabbs,
-    pub triangles: Triangles,
+    pub materials: Vec<Material>,
+    pub spheres: Vec<Sphere>,
+    pub aabbs: Vec<Aabb>,
+    pub triangles: Vec<Triangle>,
 
-    pub bind_group_layout: wgpu::BindGroupLayout,
-    pub bind_group: wgpu::BindGroup,
+    pub update: bool,
 }
 
 impl Objects {
-    pub fn init(mut commands: Commands, render_state: Res<RenderState>) {
-        let materials = Materials {
-            data: Vec::new(),
-            buffer: BufferVec::empty(&render_state.gpu_handle, "Materials Buffer"),
-        };
-
-        let spheres = Spheres {
-            data: Vec::new(),
-            buffer: BufferVec::empty(&render_state.gpu_handle, "Spheres Buffer"),
-        };
-
-        let aabbs = Aabbs {
-            data: Vec::new(),
-            buffer: BufferVec::empty(&render_state.gpu_handle, "Aabbs Buffer"),
-        };
-
-        let triangles = Triangles {
-            data: Vec::new(),
-            buffer: BufferVec::empty(&render_state.gpu_handle, "Triangles Buffer"),
-        };
-
-        let (bind_group_layout, bind_group) = Self::create_binding(
-            &render_state.gpu_handle.device,
-            &materials,
-            &spheres,
-            &aabbs,
-            &triangles,
-        );
+    pub fn init(mut commands: Commands) {
+        let materials = Vec::new();
+        let spheres = Vec::new();
+        let aabbs = Vec::new();
+        let triangles = Vec::new();
 
         commands.insert_resource(Objects {
             materials,
             spheres,
             aabbs,
             triangles,
-            bind_group_layout,
-            bind_group,
+            update: false,
         });
     }
 
@@ -98,11 +75,6 @@ impl Objects {
         mut triangle_push_events: EventReader<TrianglePushEvent>,
         mut triangle_pop_events: EventReader<TrianglePopEvent>,
     ) {
-        let mut update_materials = false;
-        let mut update_spheres = false;
-        let mut update_aabbs = false;
-        let mut update_triangles = false;
-
         for MaterialPushEvent(material) in material_push_events.read() {
             let mut material = *material;
 
@@ -110,131 +82,44 @@ impl Objects {
             material.albedo = material.albedo.powf(2.2);
             material.emission = material.emission.powf(2.2);
 
-            objects.materials.data.push(material);
-            update_materials = true;
+            objects.materials.push(material);
+            objects.update = true;
         }
 
         for _ in material_pop_events.read() {
-            objects.materials.data.pop();
-            update_materials = true;
+            objects.materials.pop();
+            objects.update = true;
         }
 
         for SpherePushEvent(sphere) in sphere_push_events.read() {
-            objects.spheres.data.push(*sphere);
-            update_spheres = true;
+            objects.spheres.push(*sphere);
+            objects.update = true;
         }
 
         for _ in sphere_pop_events.read() {
-            objects.spheres.data.pop();
-            update_spheres = true;
+            objects.spheres.pop();
+            objects.update = true;
         }
 
         for AabbPushEvent(aabb) in aabb_push_events.read() {
-            objects.aabbs.data.push(*aabb);
-            update_aabbs = true;
+            objects.aabbs.push(*aabb);
+            objects.update = true;
         }
 
         for _ in aabb_pop_events.read() {
-            objects.aabbs.data.pop();
-            update_aabbs = true;
+            objects.aabbs.pop();
+            objects.update = true;
         }
 
         for TrianglePushEvent(triangle) in triangle_push_events.read() {
-            objects.triangles.data.push(*triangle);
-            update_triangles = true;
+            objects.triangles.push(*triangle);
+            objects.update = true;
         }
 
         for _ in triangle_pop_events.read() {
-            objects.triangles.data.pop();
-            update_triangles = true;
+            objects.triangles.pop();
+            objects.update = true;
         }
-
-        let mut update_bind_group = false;
-
-        if update_materials {
-            update_bind_group |= objects.materials.update_buffer();
-        }
-
-        if update_spheres {
-            update_bind_group |= objects.spheres.update_buffer();
-        }
-
-        if update_aabbs {
-            update_bind_group |= objects.aabbs.update_buffer();
-        }
-
-        if update_triangles {
-            update_bind_group |= objects.triangles.update_buffer();
-        }
-
-        if update_bind_group {
-            objects.recreate_bind_group(&render_state.gpu_handle.device);
-        }
-    }
-
-    pub fn create_binding(
-        device: &wgpu::Device,
-        materials: &Materials,
-        spheres: &Spheres,
-        aabbs: &Aabbs,
-        triangles: &Triangles,
-    ) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
-        wgpu_util::binding::create_sequential_linked(
-            device,
-            "object_binding",
-            &[
-                wgpu_util::binding::BindingEntry {
-                    binding_type: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                    resource: materials.buffer.inner.buffer.as_entire_binding(),
-                },
-                wgpu_util::binding::BindingEntry {
-                    binding_type: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                    resource: spheres.buffer.inner.buffer.as_entire_binding(),
-                },
-                wgpu_util::binding::BindingEntry {
-                    binding_type: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                    resource: aabbs.buffer.inner.buffer.as_entire_binding(),
-                },
-                wgpu_util::binding::BindingEntry {
-                    binding_type: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                    resource: triangles.buffer.inner.buffer.as_entire_binding(),
-                },
-            ],
-        )
-    }
-
-    pub fn recreate_bind_group(&mut self, device: &wgpu::Device) {
-        self.bind_group = wgpu_util::binding::create_sequential_with_layout(
-            device,
-            "object_binding",
-            &self.bind_group_layout,
-            &[
-                self.materials.buffer.inner.buffer.as_entire_binding(),
-                self.spheres.buffer.inner.buffer.as_entire_binding(),
-                self.aabbs.buffer.inner.buffer.as_entire_binding(),
-                self.triangles.buffer.inner.buffer.as_entire_binding(),
-            ],
-        );
     }
 }
 
@@ -275,6 +160,15 @@ pub struct Material {
     pub ty: MaterialType,
 }
 
+impl Material {
+    pub fn null() -> Self {
+        Self {
+            albedo: Vec3::NEG_ONE,
+            ..Default::default()
+        }
+    }
+}
+
 pub type Spheres = CpuGpuBuffer<Sphere>;
 
 #[derive(AsStd430, Default, Clone, Copy, Debug)]
@@ -282,6 +176,15 @@ pub struct Sphere {
     pub center: Vec3,
     pub radius: f32,
     pub material_index: u32,
+}
+
+impl Sphere {
+    pub fn null() -> Self {
+        Self {
+            material_index: u32::MAX,
+            ..Default::default()
+        }
+    }
 }
 
 pub type Aabbs = CpuGpuBuffer<Aabb>;
@@ -293,6 +196,15 @@ pub struct Aabb {
     pub material_index: u32,
 }
 
+impl Aabb {
+    pub fn null() -> Self {
+        Self {
+            material_index: u32::MAX,
+            ..Default::default()
+        }
+    }
+}
+
 pub type Triangles = CpuGpuBuffer<Triangle>;
 
 #[derive(AsStd430, Default, Clone, Copy, Debug)]
@@ -301,4 +213,13 @@ pub struct Triangle {
     pub b: Vec3,
     pub c: Vec3,
     pub material_index: u32,
+}
+
+impl Triangle {
+    pub fn null() -> Self {
+        Self {
+            material_index: u32::MAX,
+            ..Default::default()
+        }
+    }
 }

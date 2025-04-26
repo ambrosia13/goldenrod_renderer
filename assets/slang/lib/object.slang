@@ -17,8 +17,9 @@ public struct Objects: Hittable {
         Hit hit;
 
         for (int i = 0; i < this.spheres.getCount(); ++i) {
+            // If we encounter a null value, we break out of the loop
             if (spheres[i].isUnhittable()) {
-                continue;
+                break;
             }
 
             hit = Hit.merge(hit, ray.intersect(spheres[i]));
@@ -26,7 +27,7 @@ public struct Objects: Hittable {
 
         for (int i = 0; i < this.aabbs.getCount(); ++i) {
             if (aabbs[i].isUnhittable()) {
-                continue;
+                break;
             }
 
             hit = Hit.merge(hit, ray.intersect(aabbs[i]));
@@ -34,7 +35,7 @@ public struct Objects: Hittable {
 
         for (int i = 0; i < this.triangles.getCount(); ++i) {
             if (triangles[i].isUnhittable()) {
-                continue;
+                break;
             }
 
             hit = Hit.merge(hit, ray.intersect(triangles[i]));
@@ -63,7 +64,7 @@ public struct Sphere: Hittable {
     }
 
     public bool isUnhittable() {
-        return this.radius == 0.0;
+        return this.radius <= 0.0 || this.materialIndex == uint.maxValue;
     }
 
     public Hit getHit(Ray ray) {
@@ -112,7 +113,7 @@ public struct Aabb: Hittable {
     public uint materialIndex;
 
     public bool isUnhittable() {
-        return any(this.boundsMax <= this.boundsMin);
+        return any(this.boundsMax <= this.boundsMin) || this.materialIndex == uint.maxValue;
     }
 
     public Hit getHit(Ray ray) {
@@ -157,7 +158,7 @@ public struct Triangle: Hittable {
     public uint materialIndex;
 
     public bool isUnhittable() {
-        return all(this.a == this.b) || all(this.b == this.c) || all(this.a == this.c);
+        return all(this.a == this.b) || all(this.b == this.c) || all(this.a == this.c) || this.materialIndex == uint.maxValue;
     }
 
     public Hit getHit(Ray ray) {

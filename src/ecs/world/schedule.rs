@@ -68,6 +68,7 @@ impl Default for ScheduleRunner {
             fps::FpsCounter::init,
             menu::Menu::init,
             object::Objects::init,
+            object::binding::ObjectBinding::init,
             camera::Camera::init,
             camera::binding::ScreenBinding::init,
         ));
@@ -76,6 +77,7 @@ impl Default for ScheduleRunner {
         update_main.add_systems((
             menu::Menu::update,
             object::Objects::update,
+            object::binding::ObjectBinding::update,
             camera::Camera::update,
             camera::binding::ScreenBinding::update,
         ));

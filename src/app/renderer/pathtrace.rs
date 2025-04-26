@@ -5,6 +5,7 @@ use bevy_ecs::{
 };
 use glam::UVec3;
 
+use crate::app::object::binding::ObjectBinding;
 use crate::{
     app::{camera::binding::ScreenBinding, object::Objects},
     render::{
@@ -38,7 +39,7 @@ impl PathtracePass {
     fn new(
         render_state: &RenderState,
         screen_binding: &ScreenBinding,
-        objects: &Objects,
+        object_binding: &ObjectBinding,
         profiler: &mut RenderProfiler,
     ) -> Self {
         let gpu_handle = render_state.gpu_handle.clone();
@@ -60,7 +61,7 @@ impl PathtracePass {
                     label: Some("pathtrace_pipeline_layout"),
                     bind_group_layouts: &[
                         &screen_binding.bind_group_layout,
-                        &objects.bind_group_layout,
+                        &object_binding.bind_group_layout,
                         texture_binding.bind_group_layout(),
                         lut_binding.bind_group_layout(),
                     ],
@@ -90,7 +91,7 @@ impl PathtracePass {
         encoder: &mut wgpu::CommandEncoder,
         profiler: &mut RenderProfiler,
         screen_binding: &ScreenBinding,
-        objects: &Objects,
+        object_binding: &ObjectBinding,
     ) {
         let (_, time_query) = &mut profiler.time_queries[self.time_query_index];
 
@@ -109,7 +110,7 @@ impl PathtracePass {
         });
 
         compute_pass.set_bind_group(0, &screen_binding.bind_group, &[]);
-        compute_pass.set_bind_group(1, &objects.bind_group, &[]);
+        compute_pass.set_bind_group(1, &object_binding.bind_group, &[]);
         compute_pass.set_bind_group(2, self.texture_binding.bind_group(), &[]);
         compute_pass.set_bind_group(3, self.lut_binding.bind_group(), &[]);
 
@@ -250,11 +251,15 @@ impl PathtracePass {
         mut commands: Commands,
         render_state: Res<RenderState>,
         screen_binding: Res<ScreenBinding>,
-        objects: Res<Objects>,
+        object_binding: Res<ObjectBinding>,
         mut profiler: ResMut<RenderProfiler>,
     ) {
-        let path_tracer =
-            PathtracePass::new(&render_state, &screen_binding, &objects, &mut profiler);
+        let path_tracer = PathtracePass::new(
+            &render_state,
+            &screen_binding,
+            &object_binding,
+            &mut profiler,
+        );
 
         commands.insert_resource(path_tracer);
     }
@@ -264,7 +269,7 @@ impl PathtracePass {
         mut path_tracer: ResMut<PathtracePass>,
         render_state: Res<RenderState>,
         screen_binding: Res<ScreenBinding>,
-        objects: Res<Objects>,
+        object_binding: Res<ObjectBinding>,
         mut profiler: ResMut<RenderProfiler>,
 
         mut frame: ResMut<FrameData>,
@@ -295,6 +300,11 @@ impl PathtracePass {
             path_tracer.pipeline = pipeline;
         }
 
-        path_tracer.draw(&mut frame.encoder, &mut profiler, &screen_binding, &objects);
+        path_tracer.draw(
+            &mut frame.encoder,
+            &mut profiler,
+            &screen_binding,
+            &object_binding,
+        );
     }
 }

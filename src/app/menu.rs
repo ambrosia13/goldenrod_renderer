@@ -30,7 +30,7 @@ use super::{
 };
 
 #[derive(Default, Debug, PartialEq, Eq)]
-enum GeometryType {
+pub enum GeometryType {
     #[default]
     Sphere,
     Aabb,
@@ -292,7 +292,7 @@ impl Menu {
                         if ui.button("Create").clicked() {
                             let mut reuse_material = false;
 
-                            if let Some(prev_material) = objects.materials.data.last() {
+                            if let Some(prev_material) = objects.materials.last() {
                                 if menu.settings.material == *prev_material {
                                     // To preserve memory, if the material hasn't changed, reuse it with the same index
                                     reuse_material = true;
@@ -300,26 +300,26 @@ impl Menu {
                             }
 
                             let material_index = if reuse_material {
-                                objects.materials.data.len() as u32 - 1
+                                objects.materials.len() as u32 - 1
                             } else {
                                 material_push_events
-                                    .send(MaterialPushEvent(menu.settings.material));
-                                objects.materials.data.len() as u32
+                                    .write(MaterialPushEvent(menu.settings.material));
+                                objects.materials.len() as u32
                             };
 
                             match menu.settings.geometry_type {
                                 GeometryType::Sphere => {
                                     menu.settings.sphere.material_index = material_index;
-                                    sphere_push_events.send(SpherePushEvent(menu.settings.sphere));
+                                    sphere_push_events.write(SpherePushEvent(menu.settings.sphere));
                                 }
                                 GeometryType::Aabb => {
                                     menu.settings.aabb.material_index = material_index;
-                                    aabb_push_events.send(AabbPushEvent(menu.settings.aabb));
+                                    aabb_push_events.write(AabbPushEvent(menu.settings.aabb));
                                 }
                                 GeometryType::Triangle => {
                                     menu.settings.triangle.material_index = material_index;
                                     triangle_push_events
-                                        .send(TrianglePushEvent(menu.settings.triangle));
+                                        .write(TrianglePushEvent(menu.settings.triangle));
                                 }
                             }
                         }
@@ -327,13 +327,13 @@ impl Menu {
                         if ui.button("Delete Last").clicked() {
                             match menu.settings.geometry_type {
                                 GeometryType::Sphere => {
-                                    sphere_pop_events.send(SpherePopEvent);
+                                    sphere_pop_events.write(SpherePopEvent);
                                 }
                                 GeometryType::Aabb => {
-                                    aabb_pop_events.send(AabbPopEvent);
+                                    aabb_pop_events.write(AabbPopEvent);
                                 }
                                 GeometryType::Triangle => {
-                                    triangle_pop_events.send(TrianglePopEvent);
+                                    triangle_pop_events.write(TrianglePopEvent);
                                 }
                             }
                         }
@@ -380,10 +380,10 @@ impl Menu {
 
                     ui.heading("Objects");
 
-                    ui.label(format!("Material count: {}", objects.materials.data.len()));
-                    ui.label(format!("Sphere count: {}", objects.spheres.data.len()));
-                    ui.label(format!("AABB count: {}", objects.aabbs.data.len()));
-                    ui.label(format!("Triangle count: {}", objects.triangles.data.len()));
+                    ui.label(format!("Material count: {}", objects.materials.len()));
+                    ui.label(format!("Sphere count: {}", objects.spheres.len()));
+                    ui.label(format!("AABB count: {}", objects.aabbs.len()));
+                    ui.label(format!("Triangle count: {}", objects.triangles.len()));
 
                     ui.separator();
 
@@ -418,7 +418,7 @@ impl Menu {
         if render_state.effective_viewport_start != effective_viewport_start
             || render_state.effective_viewport_end != effective_viewport_end
         {
-            resize_events.send(WindowResizeEvent);
+            resize_events.write(WindowResizeEvent);
         }
 
         render_state.effective_viewport_start = effective_viewport_start;
