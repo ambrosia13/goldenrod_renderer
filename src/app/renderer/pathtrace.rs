@@ -167,18 +167,6 @@ impl PathtracePass {
         )
     }
 
-    fn create_objects_binding(gpu_handle: GpuHandle, objects: &Objects) -> Binding {
-        Binding::new(
-            gpu_handle,
-            &[
-                objects.materials.buffer.bind(true),
-                objects.spheres.buffer.bind(true),
-                objects.aabbs.buffer.bind(true),
-                objects.triangles.buffer.bind(true),
-            ],
-        )
-    }
-
     fn create_textures(render_state: &RenderState) -> (Texture, Texture) {
         let texture_format = wgpu::TextureFormat::Rgba32Float;
 
