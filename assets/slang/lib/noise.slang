@@ -11,12 +11,8 @@ void pcg(inout uint seed) {
 public struct Random {
     uint state;
 
-    public __init(uint frameCount) {
-        state = frameCount + 1;
-    }
-
-    public __init(in uint frameCount, uint id) {
-        state = frameCount + id + 1;
+    public __init(uint seed) {
+        state = seed;
     }
 
     [mutating]

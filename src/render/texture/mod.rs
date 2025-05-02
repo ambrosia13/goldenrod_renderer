@@ -6,8 +6,6 @@ use crate::util;
 
 use super::{binding::BindingEntry, GpuHandle, WGPU_FEATURES};
 
-pub mod image;
-
 #[derive(Debug, Clone, Copy)]
 pub enum TextureType {
     Texture1d,

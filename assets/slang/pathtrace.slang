@@ -7,24 +7,11 @@ import lib.object;
 import lib.space;
 import lib.noise;
 import lib.spectrum;
-import lib.atmosphere;
+//import lib.atmosphere;
 
 struct Textures {
     RWTexture2D<float4> current;
     Texture2D<float4> previous;
-}
-
-float density(in float3 pos) {
-    return all(abs(pos.xz) < float2(3.0)) ? 0.1 : 0.0;
-}
-
-float raytraceVolume(in Ray ray) {
-    float b = -dot(ray.pos, ray.dir);
-    float d = b * b - dot(ray.pos, ray.pos) + 1.3;
-
-    if (d < 0.0) return -1.0;
-
-    float s = sqrt(d);
 }
 
 float3 sky(in Ray ray, inout Random random) {
@@ -71,6 +58,16 @@ float pathtrace(Ray ray, float wavelength, in Spectrum spectrum, in Objects obje
     return radiance;
 }
 
+float3 accumulate(float3 current, float3 previous, inout float frameAge, bool shouldAccumulate) {
+    if (shouldAccumulate) {
+        current = lerp(previous, current, 1.0 / (frameAge + 1.0));
+        frameAge += 1.0;
+    } else {
+        // reset frame age
+        frameAge = 0.0;
+    }
+}
+
 [[numthreads(8, 8, 1)]]
 [[shader("compute")]]
 void compute(
@@ -88,7 +85,12 @@ void compute(
         return;
     }
 
-    float2 texcoord = float2(globalInvocationId.x, globalInvocationId.y) / float2(screen.view.width, screen.view.height);
+    uint pixelId = globalInvocationId.x + globalInvocationId.y * screen.view.width;
+    uint frameOffset = screen.view.width * screen.view.height * screen.view.frameCount;
+    uint seed = pixelId + frameOffset;
+    Random random = Random(seed);
+
+    float2 texcoord = float2(globalInvocationId.xy) / float2(screen.view.width, screen.view.height);
     texcoord.y = 1.0 - texcoord.y;
 
     if (screen.shouldAccumulate()) {
@@ -98,14 +100,13 @@ void compute(
 
     float3 viewDir = screen.camera.viewDir(texcoord);
 
-    Random random = Random(screen, globalInvocationId.xy);
     Ray ray = Ray(screen.camera.position, viewDir);
 
     float wavelength = spectrum.generateWavelength(random);
     float radiance = pathtrace(ray, wavelength, spectrum, objects, random);
 
-    //float3 color = spectrum.spectralRadianceToRgb(wavelength, radiance);
-    float3 color = spectrum.spectralRadianceToRgb(wavelength, transmittance(ray, wavelength, random));
+    float3 color = spectrum.spectralRadianceToRgb(wavelength, radiance);
+    //float3 color = spectrum.spectralRadianceToRgb(wavelength, transmittance(ray, wavelength, random));
 
     float4 previousSample = textures.previous.Load(int3(globalInvocationId.xy, 0));
     float3 previousColor = previousSample.rgb;

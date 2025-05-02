@@ -79,6 +79,18 @@ struct Triangle_std430_0
 
 @binding(1) @group(3) var entryPointParams_spectrum_rgbToSpectralIntensityLut_0 : texture_storage_1d<rgba32float, read_write>;
 
+struct Random_0
+{
+     state_0 : u32,
+};
+
+fn Random_x24init_0( seed_0 : u32) -> Random_0
+{
+    var _S1 : Random_0;
+    _S1.state_0 = seed_0;
+    return _S1;
+}
+
 fn getTaaOffset_0( frame_0 : u32) -> vec2<f32>
 {
     var taaOffsets_0 : array<vec2<f32>, i32(8)> = array<vec2<f32>, i32(8)>( vec2<f32>(0.125f, -0.375f), vec2<f32>(-0.125f, 0.375f), vec2<f32>(0.625f, 0.125f), vec2<f32>(0.375f, -0.625f), vec2<f32>(-0.625f, 0.625f), vec2<f32>(-0.875f, -0.125f), vec2<f32>(0.375f, -0.875f), vec2<f32>(0.875f, 0.875f) );
@@ -99,37 +111,32 @@ struct Ray_0
 
 fn Ray_x24init_0( pos_1 : vec3<f32>,  dir_1 : vec3<f32>) -> Ray_0
 {
-    var _S1 : Ray_0;
-    _S1.pos_0 = pos_1;
-    _S1.dir_0 = dir_1;
-    return _S1;
+    var _S2 : Ray_0;
+    _S2.pos_0 = pos_1;
+    _S2.dir_0 = dir_1;
+    return _S2;
 }
 
-fn pcg_0( seed_0 : ptr<function, u32>)
+fn pcg_0( seed_1 : ptr<function, u32>)
 {
-    var state_0 : u32 = (*seed_0) * u32(747796405) + u32(2891336453);
-    var word_0 : u32 = ((((state_0 >> ((((state_0 >> (u32(28)))) + u32(4))))) ^ (state_0))) * u32(277803737);
-    (*seed_0) = (((word_0 >> (u32(22)))) ^ (word_0));
+    var state_1 : u32 = (*seed_1) * u32(747796405) + u32(2891336453);
+    var word_0 : u32 = ((((state_1 >> ((((state_1 >> (u32(28)))) + u32(4))))) ^ (state_1))) * u32(277803737);
+    (*seed_1) = (((word_0 >> (u32(22)))) ^ (word_0));
     return;
 }
 
-struct Random_0
-{
-     state_1 : u32,
-};
-
 fn Random_getUint_0( this_0 : ptr<function, Random_0>) -> u32
 {
-    var _S2 : u32 = (*this_0).state_1;
-    pcg_0(&(_S2));
-    (*this_0).state_1 = _S2;
-    return _S2;
+    var _S3 : u32 = (*this_0).state_0;
+    pcg_0(&(_S3));
+    (*this_0).state_0 = _S3;
+    return _S3;
 }
 
 fn Random_getFloat_0( this_1 : ptr<function, Random_0>) -> f32
 {
-    var _S3 : u32 = Random_getUint_0(&((*this_1)));
-    return f32(_S3) / 4.294967296e+09f;
+    var _S4 : u32 = Random_getUint_0(&((*this_1)));
+    return f32(_S4) / 4.294967296e+09f;
 }
 
 struct Hit_0
@@ -143,14 +150,14 @@ struct Hit_0
 
 fn Hit_x24init_0() -> Hit_0
 {
-    var _S4 : Hit_0;
-    _S4.success_0 = false;
-    var _S5 : vec3<f32> = vec3<f32>(0.0f);
-    _S4.position_2 = _S5;
-    _S4.distance_0 = 0.0f;
-    _S4.normal_0 = _S5;
-    _S4.materialIndex_3 = u32(0);
-    return _S4;
+    var _S5 : Hit_0;
+    _S5.success_0 = false;
+    var _S6 : vec3<f32> = vec3<f32>(0.0f);
+    _S5.position_2 = _S6;
+    _S5.distance_0 = 0.0f;
+    _S5.normal_0 = _S6;
+    _S5.materialIndex_3 = u32(0);
+    return _S5;
 }
 
 struct Sphere_0
@@ -162,7 +169,16 @@ struct Sphere_0
 
 fn Sphere_isUnhittable_0( this_2 : Sphere_0) -> bool
 {
-    return (this_2.radius_0) == 0.0f;
+    var _S7 : bool;
+    if((this_2.radius_0) <= 0.0f)
+    {
+        _S7 = true;
+    }
+    else
+    {
+        _S7 = (this_2.materialIndex_0) == u32(4294967295);
+    }
+    return _S7;
 }
 
 fn Sphere_getHit_0( this_3 : Sphere_0,  ray_0 : Ray_0) -> Hit_0
@@ -172,22 +188,22 @@ fn Sphere_getHit_0( this_3 : Sphere_0,  ray_0 : Ray_0) -> Hit_0
     var originToCenter_0 : vec3<f32> = ray_0.pos_0 - this_3.position_1;
     var b_1 : f32 = dot(originToCenter_0, ray_0.dir_0);
     var a_1 : f32 = dot(ray_0.dir_0, ray_0.dir_0);
-    var _S6 : f32 = this_3.radius_0;
-    var _S7 : f32 = b_1 * b_1 - a_1 * (dot(originToCenter_0, originToCenter_0) - _S6 * _S6);
-    if(_S7 >= 0.0f)
+    var _S8 : f32 = this_3.radius_0;
+    var _S9 : f32 = b_1 * b_1 - a_1 * (dot(originToCenter_0, originToCenter_0) - _S8 * _S8);
+    if(_S9 >= 0.0f)
     {
-        var sqrtDeterminant_0 : f32 = sqrt(_S7);
-        var _S8 : f32 = - b_1;
-        var _S9 : f32 = (_S8 - sqrtDeterminant_0) / a_1;
-        var _S10 : f32 = (_S8 + sqrtDeterminant_0) / a_1;
+        var sqrtDeterminant_0 : f32 = sqrt(_S9);
+        var _S10 : f32 = - b_1;
+        var _S11 : f32 = (_S10 - sqrtDeterminant_0) / a_1;
+        var _S12 : f32 = (_S10 + sqrtDeterminant_0) / a_1;
         var t_0 : f32;
-        if(_S9 > 0.0f)
+        if(_S11 > 0.0f)
         {
-            t_0 = _S9;
+            t_0 = _S11;
         }
         else
         {
-            t_0 = _S10;
+            t_0 = _S12;
         }
         if(t_0 > 0.0f)
         {
@@ -237,16 +253,16 @@ fn Aabb_getHit_0( this_5 : Aabb_0,  ray_1 : Ray_0) -> Hit_0
     var tFar_0 : f32 = min3_0(t2_0.x, t2_0.y, t2_0.z);
     if(!all((clamp(ray_1.pos_0, this_5.boundsMin_0, this_5.boundsMax_0)) == (ray_1.pos_0)))
     {
-        var _S11 : bool;
+        var _S13 : bool;
         if(tNear_0 >= tFar_0)
         {
-            _S11 = true;
+            _S13 = true;
         }
         else
         {
-            _S11 = tFar_0 <= 0.0f;
+            _S13 = tFar_0 <= 0.0f;
         }
-        hit_1.success_0 = !_S11;
+        hit_1.success_0 = !_S13;
         hit_1.distance_0 = tNear_0;
         var eq_0 : vec3<bool> = t1_0 == vec3<f32>(tNear_0);
         hit_1.normal_0 = vec3<f32>(f32(eq_0.x), f32(eq_0.y), f32(eq_0.z)) * vec3<f32>(sign(- ray_1.dir_0));
@@ -287,18 +303,18 @@ fn Ray_intersect_2( this_8 : Ray_0,  object_2 : Triangle_0) -> Hit_0
 
 fn Hit_merge_0( a_2 : Hit_0,  b_2 : Hit_0) -> Hit_0
 {
-    var _S12 : Hit_0 = Hit_x24init_0();
-    var _S13 : bool;
+    var _S14 : Hit_0 = Hit_x24init_0();
+    var _S15 : bool;
     if(a_2.success_0)
     {
-        _S13 = b_2.success_0;
+        _S15 = b_2.success_0;
     }
     else
     {
-        _S13 = false;
+        _S15 = false;
     }
     var hit_2 : Hit_0;
-    if(_S13)
+    if(_S15)
     {
         if((a_2.distance_0) <= (b_2.distance_0))
         {
@@ -313,13 +329,13 @@ fn Hit_merge_0( a_2 : Hit_0,  b_2 : Hit_0) -> Hit_0
     {
         if(a_2.success_0)
         {
-            _S13 = !b_2.success_0;
+            _S15 = !b_2.success_0;
         }
         else
         {
-            _S13 = false;
+            _S15 = false;
         }
-        if(_S13)
+        if(_S15)
         {
             hit_2 = a_2;
         }
@@ -327,19 +343,19 @@ fn Hit_merge_0( a_2 : Hit_0,  b_2 : Hit_0) -> Hit_0
         {
             if(b_2.success_0)
             {
-                _S13 = !a_2.success_0;
+                _S15 = !a_2.success_0;
             }
             else
             {
-                _S13 = false;
+                _S15 = false;
             }
-            if(_S13)
+            if(_S15)
             {
                 hit_2 = b_2;
             }
             else
             {
-                hit_2 = _S12;
+                hit_2 = _S14;
             }
         }
     }
@@ -348,29 +364,46 @@ fn Hit_merge_0( a_2 : Hit_0,  b_2 : Hit_0) -> Hit_0
 
 fn Aabb_isUnhittable_0( this_9 : Aabb_0) -> bool
 {
-    return any((this_9.boundsMax_0) <= (this_9.boundsMin_0));
+    var _S16 : bool;
+    if(any((this_9.boundsMax_0) <= (this_9.boundsMin_0)))
+    {
+        _S16 = true;
+    }
+    else
+    {
+        _S16 = (this_9.materialIndex_1) == u32(4294967295);
+    }
+    return _S16;
 }
 
 fn Triangle_isUnhittable_0( this_10 : Triangle_0) -> bool
 {
-    var _S14 : bool;
+    var _S17 : bool;
     if(all((this_10.a_0) == (this_10.b_0)))
     {
-        _S14 = true;
+        _S17 = true;
     }
     else
     {
-        _S14 = all((this_10.b_0) == (this_10.c_0));
+        _S17 = all((this_10.b_0) == (this_10.c_0));
     }
-    if(_S14)
+    if(_S17)
     {
-        _S14 = true;
+        _S17 = true;
     }
     else
     {
-        _S14 = all((this_10.a_0) == (this_10.c_0));
+        _S17 = all((this_10.a_0) == (this_10.c_0));
     }
-    return _S14;
+    if(_S17)
+    {
+        _S17 = true;
+    }
+    else
+    {
+        _S17 = (this_10.materialIndex_2) == u32(4294967295);
+    }
+    return _S17;
 }
 
 fn sky_0( ray_3 : Ray_0,  random_0 : ptr<function, Random_0>) -> vec3<f32>
@@ -399,9 +432,9 @@ fn Material_getAlbedo_0( this_11 : Material_0) -> vec3<f32>
 
 fn Random_getUnitVector_0( this_12 : ptr<function, Random_0>) -> vec3<f32>
 {
-    var _S15 : f32 = Random_getFloat_0(&((*this_12)));
-    var _S16 : f32 = Random_getFloat_0(&((*this_12)));
-    var xy_0 : vec2<f32> = vec2<f32>(_S15, _S16);
+    var _S18 : f32 = Random_getFloat_0(&((*this_12)));
+    var _S19 : f32 = Random_getFloat_0(&((*this_12)));
+    var xy_0 : vec2<f32> = vec2<f32>(_S18, _S19);
     xy_0[i32(0)] = xy_0[i32(0)] * 6.28318548202514648f;
     xy_0[i32(1)] = 2.0f * xy_0.y - 1.0f;
     return vec3<f32>(vec2<f32>(sin(xy_0.x), cos(xy_0.x)) * vec2<f32>(sqrt(1.0f - xy_0.y * xy_0.y)), xy_0.y);
@@ -409,133 +442,13 @@ fn Random_getUnitVector_0( this_12 : ptr<function, Random_0>) -> vec3<f32>
 
 fn Random_getCosineVector_0( this_13 : ptr<function, Random_0>,  normal_2 : vec3<f32>) -> vec3<f32>
 {
-    var _S17 : vec3<f32> = Random_getUnitVector_0(&((*this_13)));
-    return normalize(normal_2 + _S17);
+    var _S20 : vec3<f32> = Random_getUnitVector_0(&((*this_13)));
+    return normalize(normal_2 + _S20);
 }
 
 fn Material_getEmission_0( this_14 : Material_0) -> vec3<f32>
 {
     return this_14.albedo_0 * vec3<f32>(this_14.emission_0);
-}
-
-struct Coefficients_0
-{
-     scattering_0 : f32,
-     absorption_0 : f32,
-};
-
-fn Coefficients_x24init_0( scattering_1 : f32,  absorption_1 : f32) -> Coefficients_0
-{
-    var _S18 : Coefficients_0;
-    _S18.scattering_0 = scattering_1;
-    _S18.absorption_0 = absorption_1;
-    return _S18;
-}
-
-fn Coefficients_rayleigh_0( wavelength_0 : f32) -> Coefficients_0
-{
-    return Coefficients_x24init_0(9.3416725e+05f / pow(wavelength_0 - 13.61110019683837891f, 4.0f), 0.0f);
-}
-
-fn Coefficients_mie_0( wavelength_1 : f32) -> Coefficients_0
-{
-    var scattering_2 : f32 = 0.00339996814727783f * ((166.5048980712890625f - 0.83300566673278809f * wavelength_1) / (1.0f - 0.00546758994460106f * wavelength_1)) / (wavelength_1 * wavelength_1);
-    return Coefficients_x24init_0(scattering_2, 0.10999999940395355f * scattering_2);
-}
-
-fn Coefficients_ozone_0( wavelength_2 : f32) -> Coefficients_0
-{
-    return Coefficients_x24init_0(0.0f, 2.77775848189776298e-06f * exp(- pow((wavelength_2 - 592.281005859375f) / 76.78949737548828125f, 2.0f)));
-}
-
-fn Coefficients_extinction_0( this_15 : Coefficients_0) -> f32
-{
-    return this_15.scattering_0 + this_15.absorption_0;
-}
-
-fn Sphere_x24init_0( position_3 : vec3<f32>,  radius_1 : f32) -> Sphere_0
-{
-    var _S19 : Sphere_0;
-    _S19.position_1 = position_3;
-    _S19.radius_0 = radius_1;
-    _S19.materialIndex_0 = u32(4294967295);
-    return _S19;
-}
-
-fn getInteractionDistance_0( majorantExtinction_0 : f32,  random_1 : ptr<function, Random_0>) -> f32
-{
-    var _S20 : f32 = Random_getFloat_0(&((*random_1)));
-    return - log(1.0f - _S20) / majorantExtinction_0;
-}
-
-fn altitude_0( position_4 : vec3<f32>) -> f32
-{
-    return distance(position_4, vec3<f32>(0.0f, -6.3605e+06f, 0.0f)) - 6.36e+06f;
-}
-
-fn rayleighDensity_0( altitude_1 : f32) -> f32
-{
-    return exp(- altitude_1 / 8000.0f);
-}
-
-fn mieDensity_0( altitude_2 : f32) -> f32
-{
-    return exp(- altitude_2 / 1200.0f);
-}
-
-fn ozoneDensity_0( altitude_3 : f32) -> f32
-{
-    var x_3 : f32 = (max(0.0f, altitude_3) - 22000.0f) / 6092.0400390625f;
-    return 2.0f / (exp(- x_3) + exp(x_3));
-}
-
-fn ratioTrack_0( ray_4 : Ray_0,  wavelength_3 : f32,  random_2 : ptr<function, Random_0>) -> f32
-{
-    var _S21 : f32 = Coefficients_extinction_0(Coefficients_rayleigh_0(wavelength_3));
-    var _S22 : f32 = Coefficients_extinction_0(Coefficients_mie_0(wavelength_3));
-    var _S23 : f32 = Coefficients_extinction_0(Coefficients_ozone_0(wavelength_3));
-    var _S24 : f32 = _S21 + _S22 + _S23;
-    var closestHit_0 : Hit_0 = Hit_merge_0(Ray_intersect_0(ray_4, Sphere_x24init_0(vec3<f32>(0.0f), 6.36e+06f)), Ray_intersect_0(ray_4, Sphere_x24init_0(vec3<f32>(0.0f), 6.46e+06f)));
-    var _S25 : f32;
-    if(closestHit_0.success_0)
-    {
-        _S25 = closestHit_0.distance_0;
-    }
-    else
-    {
-        _S25 = 3.4028234663852886e+38f;
-    }
-    var i_0 : i32 = i32(0);
-    var t_1 : f32 = 0.0f;
-    var transmittance_0 : f32 = 1.0f;
-    for(;;)
-    {
-        if(i_0 < i32(256))
-        {
-        }
-        else
-        {
-            break;
-        }
-        var interactionDistance_0 : f32 = getInteractionDistance_0(_S24, &((*random_2)));
-        var t_2 : f32 = t_1 + interactionDistance_0;
-        if(t_2 > _S25)
-        {
-            break;
-        }
-        var altitude_4 : f32 = altitude_0(ray_4.pos_0 + ray_4.dir_0 * vec3<f32>(t_2));
-        var transmittance_1 : f32 = transmittance_0 * (1.0f - (rayleighDensity_0(altitude_4) * _S21 + mieDensity_0(altitude_4) * _S22 + ozoneDensity_0(altitude_4) * _S23) / _S24);
-        i_0 = i_0 + i32(1);
-        t_1 = t_2;
-        transmittance_0 = transmittance_1;
-    }
-    return transmittance_0;
-}
-
-fn transmittance_2( ray_5 : Ray_0,  wavelength_4 : f32,  random_3 : ptr<function, Random_0>) -> f32
-{
-    var _S26 : f32 = ratioTrack_0(ray_5, wavelength_4, &((*random_3)));
-    return _S26;
 }
 
 fn xyzToRgb_0( xyz_0 : vec3<f32>) -> vec3<f32>
@@ -545,266 +458,268 @@ fn xyzToRgb_0( xyz_0 : vec3<f32>) -> vec3<f32>
 
 fn Screen_shouldAccumulate_0() -> bool
 {
-    var _S27 : bool;
+    var _S21 : bool;
     if(all((entryPointParams_screen_camera_0.position_0) == (entryPointParams_screen_camera_0.previousPosition_0)))
     {
-        _S27 = all((entryPointParams_screen_camera_0.view_0) == (entryPointParams_screen_camera_0.previousView_0));
+        _S21 = all((entryPointParams_screen_camera_0.view_0) == (entryPointParams_screen_camera_0.previousView_0));
     }
     else
     {
-        _S27 = false;
+        _S21 = false;
     }
-    if(_S27)
+    if(_S21)
     {
-        _S27 = all(vec4<f32>(entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(0)][i32(0)], entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(1)][i32(0)], entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(2)][i32(0)], entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(3)][i32(0)]) == vec4<f32>(entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(0)][i32(0)], entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(1)][i32(0)], entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(2)][i32(0)], entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(3)][i32(0)]));
+        _S21 = all(vec4<f32>(entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(0)][i32(0)], entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(1)][i32(0)], entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(2)][i32(0)], entryPointParams_screen_camera_0.projectionMatrix_0.data_0[i32(3)][i32(0)]) == vec4<f32>(entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(0)][i32(0)], entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(1)][i32(0)], entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(2)][i32(0)], entryPointParams_screen_camera_0.previousProjectionMatrix_0.data_0[i32(3)][i32(0)]));
     }
     else
     {
-        _S27 = false;
+        _S21 = false;
     }
-    return _S27;
+    return _S21;
 }
 
-fn Camera_screenToScene_0( _S28 : vec3<f32>) -> vec3<f32>
+fn Camera_screenToScene_0( _S22 : vec3<f32>) -> vec3<f32>
 {
-    return Camera_fromScreenSpace_0(_S28, mat4x4<f32>(entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(3)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(3)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(3)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(3)])) - entryPointParams_screen_camera_0.position_0;
+    return Camera_fromScreenSpace_0(_S22, mat4x4<f32>(entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(0)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(1)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(2)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(0)][i32(3)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(1)][i32(3)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(2)][i32(3)], entryPointParams_screen_camera_0.inverseViewProjectionMatrix_0.data_0[i32(3)][i32(3)])) - entryPointParams_screen_camera_0.position_0;
 }
 
-fn Camera_viewDir_0( _S29 : vec2<f32>) -> vec3<f32>
+fn Camera_viewDir_0( _S23 : vec2<f32>) -> vec3<f32>
 {
-    return normalize(Camera_screenToScene_0(vec3<f32>(_S29, 1.0f)));
+    return normalize(Camera_screenToScene_0(vec3<f32>(_S23, 1.0f)));
 }
 
-fn Random_x24init_0( _S30 : vec2<u32>) -> Random_0
+fn Spectrum_generateWavelength_0( _S24 : ptr<function, Random_0>) -> f32
 {
-    var _S31 : Random_0;
-    _S31.state_1 = entryPointParams_screen_view_0.width_0 * entryPointParams_screen_view_0.height_0 * (entryPointParams_screen_view_0.frameCount_0 + u32(1)) * (_S30.x + _S30.y * entryPointParams_screen_view_0.width_0);
-    return _S31;
-}
-
-fn Spectrum_generateWavelength_0( _S32 : ptr<function, Random_0>) -> f32
-{
-    var _S33 : f32 = Random_getFloat_0(&((*_S32)));
-    return _S33 * 400.0f + 380.0f;
+    var _S25 : f32 = Random_getFloat_0(&((*_S24)));
+    return _S25 * 400.0f + 380.0f;
 }
 
 fn getCount_0() -> i32
 {
-    var _S34 : vec2<u32> = vec2<u32>(arrayLength(&entryPointParams_objects_spheres_0), 32);
-    return i32(_S34.x);
+    var _S26 : vec2<u32> = vec2<u32>(arrayLength(&entryPointParams_objects_spheres_0), 32);
+    return i32(_S26.x);
 }
 
 fn getCount_1() -> i32
 {
-    var _S35 : vec2<u32> = vec2<u32>(arrayLength(&entryPointParams_objects_aabbs_0), 32);
-    return i32(_S35.x);
+    var _S27 : vec2<u32> = vec2<u32>(arrayLength(&entryPointParams_objects_aabbs_0), 32);
+    return i32(_S27.x);
 }
 
 fn getCount_2() -> i32
 {
-    var _S36 : vec2<u32> = vec2<u32>(arrayLength(&entryPointParams_objects_triangles_0), 48);
-    return i32(_S36.x);
+    var _S28 : vec2<u32> = vec2<u32>(arrayLength(&entryPointParams_objects_triangles_0), 48);
+    return i32(_S28.x);
 }
 
-fn Objects_getHit_0( _S37 : Ray_0) -> Hit_0
+fn Objects_getHit_0( _S29 : Ray_0) -> Hit_0
 {
-    var _S38 : Hit_0 = Hit_x24init_0();
-    var _S39 : i32 = getCount_0();
-    var _S40 : i32 = getCount_1();
-    var _S41 : i32 = getCount_2();
-    var hit_3 : Hit_0 = _S38;
-    var i_1 : i32 = i32(0);
+    var _S30 : Hit_0 = Hit_x24init_0();
+    var _S31 : i32 = getCount_0();
+    var _S32 : i32 = getCount_1();
+    var _S33 : i32 = getCount_2();
+    var hit_3 : Hit_0 = _S30;
+    var i_0 : i32 = i32(0);
     for(;;)
     {
-        if(i_1 < _S39)
+        if(i_0 < _S31)
         {
         }
         else
         {
             break;
         }
-        var _S42 : Sphere_0 = Sphere_0( entryPointParams_objects_spheres_0[i_1].position_1, entryPointParams_objects_spheres_0[i_1].radius_0, entryPointParams_objects_spheres_0[i_1].materialIndex_0 );
-        if(Sphere_isUnhittable_0(_S42))
+        var _S34 : Sphere_0 = Sphere_0( entryPointParams_objects_spheres_0[i_0].position_1, entryPointParams_objects_spheres_0[i_0].radius_0, entryPointParams_objects_spheres_0[i_0].materialIndex_0 );
+        if(Sphere_isUnhittable_0(_S34))
         {
-            i_1 = i_1 + i32(1);
-            continue;
+            break;
         }
-        var _S43 : Sphere_0 = Sphere_0( entryPointParams_objects_spheres_0[i_1].position_1, entryPointParams_objects_spheres_0[i_1].radius_0, entryPointParams_objects_spheres_0[i_1].materialIndex_0 );
-        hit_3 = Hit_merge_0(hit_3, Ray_intersect_0(_S37, _S43));
-        i_1 = i_1 + i32(1);
+        var _S35 : Sphere_0 = Sphere_0( entryPointParams_objects_spheres_0[i_0].position_1, entryPointParams_objects_spheres_0[i_0].radius_0, entryPointParams_objects_spheres_0[i_0].materialIndex_0 );
+        var _S36 : Hit_0 = Hit_merge_0(hit_3, Ray_intersect_0(_S29, _S35));
+        var i_1 : i32 = i_0 + i32(1);
+        hit_3 = _S36;
+        i_0 = i_1;
     }
-    i_1 = i32(0);
+    i_0 = i32(0);
     for(;;)
     {
-        if(i_1 < _S40)
+        if(i_0 < _S32)
         {
         }
         else
         {
             break;
         }
-        var _S44 : Aabb_0 = Aabb_0( entryPointParams_objects_aabbs_0[i_1].boundsMin_0, entryPointParams_objects_aabbs_0[i_1].boundsMax_0, entryPointParams_objects_aabbs_0[i_1].materialIndex_1 );
-        if(Aabb_isUnhittable_0(_S44))
+        var _S37 : Aabb_0 = Aabb_0( entryPointParams_objects_aabbs_0[i_0].boundsMin_0, entryPointParams_objects_aabbs_0[i_0].boundsMax_0, entryPointParams_objects_aabbs_0[i_0].materialIndex_1 );
+        if(Aabb_isUnhittable_0(_S37))
         {
-            i_1 = i_1 + i32(1);
-            continue;
+            break;
         }
-        var _S45 : Aabb_0 = Aabb_0( entryPointParams_objects_aabbs_0[i_1].boundsMin_0, entryPointParams_objects_aabbs_0[i_1].boundsMax_0, entryPointParams_objects_aabbs_0[i_1].materialIndex_1 );
-        hit_3 = Hit_merge_0(hit_3, Ray_intersect_1(_S37, _S45));
-        i_1 = i_1 + i32(1);
+        var _S38 : Aabb_0 = Aabb_0( entryPointParams_objects_aabbs_0[i_0].boundsMin_0, entryPointParams_objects_aabbs_0[i_0].boundsMax_0, entryPointParams_objects_aabbs_0[i_0].materialIndex_1 );
+        var _S39 : Hit_0 = Hit_merge_0(hit_3, Ray_intersect_1(_S29, _S38));
+        var i_2 : i32 = i_0 + i32(1);
+        hit_3 = _S39;
+        i_0 = i_2;
     }
-    i_1 = i32(0);
+    i_0 = i32(0);
     for(;;)
     {
-        if(i_1 < _S41)
+        if(i_0 < _S33)
         {
         }
         else
         {
             break;
         }
-        var _S46 : Triangle_0 = Triangle_0( entryPointParams_objects_triangles_0[i_1].a_0, entryPointParams_objects_triangles_0[i_1].b_0, entryPointParams_objects_triangles_0[i_1].c_0, entryPointParams_objects_triangles_0[i_1].materialIndex_2 );
-        if(Triangle_isUnhittable_0(_S46))
+        var _S40 : Triangle_0 = Triangle_0( entryPointParams_objects_triangles_0[i_0].a_0, entryPointParams_objects_triangles_0[i_0].b_0, entryPointParams_objects_triangles_0[i_0].c_0, entryPointParams_objects_triangles_0[i_0].materialIndex_2 );
+        if(Triangle_isUnhittable_0(_S40))
         {
-            i_1 = i_1 + i32(1);
-            continue;
+            break;
         }
-        var _S47 : Triangle_0 = Triangle_0( entryPointParams_objects_triangles_0[i_1].a_0, entryPointParams_objects_triangles_0[i_1].b_0, entryPointParams_objects_triangles_0[i_1].c_0, entryPointParams_objects_triangles_0[i_1].materialIndex_2 );
-        hit_3 = Hit_merge_0(hit_3, Ray_intersect_2(_S37, _S47));
-        i_1 = i_1 + i32(1);
+        var _S41 : Triangle_0 = Triangle_0( entryPointParams_objects_triangles_0[i_0].a_0, entryPointParams_objects_triangles_0[i_0].b_0, entryPointParams_objects_triangles_0[i_0].c_0, entryPointParams_objects_triangles_0[i_0].materialIndex_2 );
+        var _S42 : Hit_0 = Hit_merge_0(hit_3, Ray_intersect_2(_S29, _S41));
+        var i_3 : i32 = i_0 + i32(1);
+        hit_3 = _S42;
+        i_0 = i_3;
     }
     return hit_3;
 }
 
-fn Spectrum_rgbToSpectralRadiance_0( _S48 : f32,  _S49 : vec3<f32>) -> f32
+fn Spectrum_rgbToSpectralRadiance_0( _S43 : f32,  _S44 : vec3<f32>) -> f32
 {
-    var translated_0 : f32 = rcp_0(5.0f) * clamp(_S48 - 380.0f, 0.0f, 400.0f);
+    var translated_0 : f32 = rcp_0(5.0f) * clamp(_S43 - 380.0f, 0.0f, 400.0f);
     var icoord_0 : i32 = i32(translated_0);
-    var _S50 : f32 = fract(translated_0);
-    var _S51 : vec4<f32> = (textureLoad((entryPointParams_spectrum_rgbToSpectralIntensityLut_0), (icoord_0)));
-    var _S52 : vec3<f32> = _S51.xyz;
-    var _S53 : vec4<f32> = (textureLoad((entryPointParams_spectrum_rgbToSpectralIntensityLut_0), (icoord_0 + i32(1))));
-    return dot(_S49, mix(_S52, _S53.xyz, vec3<f32>(_S50)));
+    var _S45 : f32 = fract(translated_0);
+    var _S46 : vec4<f32> = (textureLoad((entryPointParams_spectrum_rgbToSpectralIntensityLut_0), (icoord_0)));
+    var _S47 : vec3<f32> = _S46.xyz;
+    var _S48 : vec4<f32> = (textureLoad((entryPointParams_spectrum_rgbToSpectralIntensityLut_0), (icoord_0 + i32(1))));
+    return dot(_S44, mix(_S47, _S48.xyz, vec3<f32>(_S45)));
 }
 
-fn Material_evaluateBrdf_0( _S54 : Material_0,  _S55 : Hit_0,  _S56 : f32,  _S57 : ptr<function, Random_0>,  _S58 : ptr<function, Ray_0>) -> f32
+fn Material_evaluateBrdf_0( _S49 : Material_0,  _S50 : Hit_0,  _S51 : f32,  _S52 : ptr<function, Random_0>,  _S53 : ptr<function, Ray_0>) -> f32
 {
-    if((_S54.type_0) == u32(0))
+    if((_S49.type_0) == u32(0))
     {
-        var _S59 : f32 = Spectrum_rgbToSpectralRadiance_0(_S56, Material_getAlbedo_0(_S54));
-        var _S60 : vec3<f32> = _S55.position_2 + _S55.normal_0 * vec3<f32>(0.00009999999747379f);
-        var _S61 : vec3<f32> = Random_getCosineVector_0(&((*_S57)), _S55.normal_0);
-        (*_S58) = Ray_x24init_0(_S60, _S61);
-        return _S59;
+        var _S54 : f32 = Spectrum_rgbToSpectralRadiance_0(_S51, Material_getAlbedo_0(_S49));
+        var _S55 : vec3<f32> = _S50.position_2 + _S50.normal_0 * vec3<f32>(0.00009999999747379f);
+        var _S56 : vec3<f32> = Random_getCosineVector_0(&((*_S52)), _S50.normal_0);
+        (*_S53) = Ray_x24init_0(_S55, _S56);
+        return _S54;
     }
     else
     {
-        var _S62 : vec3<f32> = vec3<f32>(0.0f);
-        (*_S58) = Ray_x24init_0(_S62, _S62);
+        var _S57 : vec3<f32> = vec3<f32>(0.0f);
+        (*_S53) = Ray_x24init_0(_S57, _S57);
         return 0.0f;
     }
 }
 
-fn pathtrace_0( _S63 : Ray_0,  _S64 : f32,  _S65 : ptr<function, Random_0>) -> f32
+fn pathtrace_0( _S58 : Ray_0,  _S59 : f32,  _S60 : ptr<function, Random_0>) -> f32
 {
-    var _S66 : Ray_0 = _S63;
-    var i_2 : i32 = i32(0);
+    var _S61 : Ray_0 = _S58;
+    var i_4 : i32 = i32(0);
     var throughput_0 : f32 = 1.0f;
     var radiance_0 : f32 = 0.0f;
     for(;;)
     {
-        if(i_2 < i32(5))
+        if(i_4 < i32(100))
         {
         }
         else
         {
             break;
         }
-        var _S67 : Hit_0 = Objects_getHit_0(_S66);
-        if(!_S67.success_0)
+        var _S62 : Hit_0 = Objects_getHit_0(_S61);
+        if(!_S62.success_0)
         {
-            var _S68 : vec3<f32> = sky_0(_S66, &((*_S65)));
-            radiance_0 = radiance_0 + throughput_0 * Spectrum_rgbToSpectralRadiance_0(_S64, _S68);
+            var _S63 : vec3<f32> = sky_0(_S61, &((*_S60)));
+            radiance_0 = radiance_0 + throughput_0 * Spectrum_rgbToSpectralRadiance_0(_S59, _S63);
             break;
         }
-        var _S69 : Material_0 = Material_0( entryPointParams_objects_materials_0[_S67.materialIndex_3].albedo_0, entryPointParams_objects_materials_0[_S67.materialIndex_3].roughness_0, entryPointParams_objects_materials_0[_S67.materialIndex_3].emission_0, entryPointParams_objects_materials_0[_S67.materialIndex_3].ior_0, entryPointParams_objects_materials_0[_S67.materialIndex_3].type_0 );
+        var _S64 : Material_0 = Material_0( entryPointParams_objects_materials_0[_S62.materialIndex_3].albedo_0, entryPointParams_objects_materials_0[_S62.materialIndex_3].roughness_0, entryPointParams_objects_materials_0[_S62.materialIndex_3].emission_0, entryPointParams_objects_materials_0[_S62.materialIndex_3].ior_0, entryPointParams_objects_materials_0[_S62.materialIndex_3].type_0 );
         var nextRay_0 : Ray_0;
-        var _S70 : f32 = Material_evaluateBrdf_0(_S69, _S67, _S64, &((*_S65)), &(nextRay_0));
-        var radiance_1 : f32 = radiance_0 + throughput_0 * Spectrum_rgbToSpectralRadiance_0(_S64, Material_getEmission_0(_S69));
-        var throughput_1 : f32 = throughput_0 * _S70;
-        var _S71 : Ray_0 = nextRay_0;
-        var i_3 : i32 = i_2 + i32(1);
-        _S66 = _S71;
-        i_2 = i_3;
-        throughput_0 = throughput_1;
+        var _S65 : f32 = Material_evaluateBrdf_0(_S64, _S62, _S59, &((*_S60)), &(nextRay_0));
+        var radiance_1 : f32 = radiance_0 + throughput_0 * Spectrum_rgbToSpectralRadiance_0(_S59, Material_getEmission_0(_S64));
+        var throughput_1 : f32 = throughput_0 * _S65;
+        var inverseTerminationProbability_0 : f32 = clamp(throughput_1, 0.0f, 1.0f);
+        var _S66 : f32 = Random_getFloat_0(&((*_S60)));
+        if(_S66 > inverseTerminationProbability_0)
+        {
+            radiance_0 = radiance_1;
+            break;
+        }
+        var throughput_2 : f32 = throughput_1 * (1.0f / inverseTerminationProbability_0);
+        var _S67 : Ray_0 = nextRay_0;
+        var i_5 : i32 = i_4 + i32(1);
+        _S61 = _S67;
+        i_4 = i_5;
+        throughput_0 = throughput_2;
         radiance_0 = radiance_1;
     }
     return radiance_0;
 }
 
-fn Spectrum_spectralRadianceToRgb_0( _S72 : f32,  _S73 : f32) -> vec3<f32>
+fn Spectrum_spectralRadianceToRgb_0( _S68 : f32,  _S69 : f32) -> vec3<f32>
 {
-    var translated_1 : f32 = rcp_0(1.0f) * clamp(_S72 - 360.0f, 0.0f, 471.0f);
+    var translated_1 : f32 = rcp_0(1.0f) * clamp(_S68 - 360.0f, 0.0f, 471.0f);
     var icoord_1 : i32 = i32(translated_1);
-    var _S74 : f32 = fract(translated_1);
-    var _S75 : vec4<f32> = (textureLoad((entryPointParams_spectrum_wavelengthToXyzLut_0), (icoord_1)));
-    var _S76 : vec3<f32> = _S75.xyz;
-    var _S77 : vec4<f32> = (textureLoad((entryPointParams_spectrum_wavelengthToXyzLut_0), (icoord_1 + i32(1))));
-    return xyzToRgb_0(mix(_S76, _S77.xyz, vec3<f32>(_S74))) * vec3<f32>(_S73);
+    var _S70 : f32 = fract(translated_1);
+    var _S71 : vec4<f32> = (textureLoad((entryPointParams_spectrum_wavelengthToXyzLut_0), (icoord_1)));
+    var _S72 : vec3<f32> = _S71.xyz;
+    var _S73 : vec4<f32> = (textureLoad((entryPointParams_spectrum_wavelengthToXyzLut_0), (icoord_1 + i32(1))));
+    return xyzToRgb_0(mix(_S72, _S73.xyz, vec3<f32>(_S70))) * vec3<f32>(_S69);
 }
 
 @compute
 @workgroup_size(8, 8, 1)
-fn compute(@builtin(global_invocation_id) globalInvocationId_0 : vec3<u32>, @builtin(local_invocation_id) localInvocationId_0 : vec3<u32>)
+fn compute(@builtin(global_invocation_id) globalInvocationId_0 : vec3<u32>, @builtin(local_invocation_id) localInvocationId_0 : vec3<u32>, @builtin(local_invocation_index) localInvocationIndex_0 : u32)
 {
-    var _S78 : u32 = globalInvocationId_0.x;
-    var _S79 : bool;
-    if(_S78 >= (entryPointParams_screen_view_0.width_0))
+    var _S74 : u32 = globalInvocationId_0.x;
+    var _S75 : bool;
+    if(_S74 >= (entryPointParams_screen_view_0.width_0))
     {
-        _S79 = true;
+        _S75 = true;
     }
     else
     {
-        _S79 = (globalInvocationId_0.y) >= (entryPointParams_screen_view_0.height_0);
+        _S75 = (globalInvocationId_0.y) >= (entryPointParams_screen_view_0.height_0);
     }
-    if(_S79)
+    if(_S75)
     {
         return;
     }
-    var _S80 : vec2<f32> = vec2<f32>(f32(_S78), f32(globalInvocationId_0.y)) / vec2<f32>(f32(entryPointParams_screen_view_0.width_0), f32(entryPointParams_screen_view_0.height_0));
-    var texcoord_0 : vec2<f32> = _S80;
-    texcoord_0[i32(1)] = 1.0f - _S80.y;
-    var _S81 : bool = Screen_shouldAccumulate_0();
-    if(_S81)
+    var random_1 : Random_0 = Random_x24init_0(_S74 + globalInvocationId_0.y * entryPointParams_screen_view_0.width_0 + entryPointParams_screen_view_0.width_0 * entryPointParams_screen_view_0.height_0 * entryPointParams_screen_view_0.frameCount_0);
+    var _S76 : vec2<u32> = globalInvocationId_0.xy;
+    var _S77 : vec2<f32> = vec2<f32>(_S76) / vec2<f32>(f32(entryPointParams_screen_view_0.width_0), f32(entryPointParams_screen_view_0.height_0));
+    var texcoord_0 : vec2<f32> = _S77;
+    texcoord_0[i32(1)] = 1.0f - _S77.y;
+    var _S78 : bool = Screen_shouldAccumulate_0();
+    if(_S78)
     {
         texcoord_0 = texcoord_0 + getTaaOffset_0(entryPointParams_screen_view_0.frameCount_0) / vec2<f32>(f32(entryPointParams_screen_view_0.width_0), f32(entryPointParams_screen_view_0.height_0));
     }
-    var _S82 : vec3<f32> = Camera_viewDir_0(texcoord_0);
-    var _S83 : vec2<u32> = globalInvocationId_0.xy;
-    var random_4 : Random_0 = Random_x24init_0(_S83);
-    var ray_6 : Ray_0 = Ray_x24init_0(entryPointParams_screen_camera_0.position_0, _S82);
-    var _S84 : f32 = Spectrum_generateWavelength_0(&(random_4));
-    var _S85 : f32 = pathtrace_0(ray_6, _S84, &(random_4));
-    var _S86 : f32 = transmittance_2(ray_6, _S84, &(random_4));
-    var _S87 : vec3<f32> = Spectrum_spectralRadianceToRgb_0(_S84, _S86);
-    var _S88 : vec3<i32> = vec3<i32>(vec2<i32>(_S83), i32(0));
-    var previousSample_0 : vec4<f32> = (textureLoad((entryPointParams_textures_previous_0), ((_S88)).xy, ((_S88)).z));
+    var ray_4 : Ray_0 = Ray_x24init_0(entryPointParams_screen_camera_0.position_0, Camera_viewDir_0(texcoord_0));
+    var _S79 : f32 = Spectrum_generateWavelength_0(&(random_1));
+    var _S80 : f32 = pathtrace_0(ray_4, _S79, &(random_1));
+    var _S81 : vec3<f32> = Spectrum_spectralRadianceToRgb_0(_S79, _S80);
+    var _S82 : vec3<i32> = vec3<i32>(vec2<i32>(_S76), i32(0));
+    var previousSample_0 : vec4<f32> = (textureLoad((entryPointParams_textures_previous_0), ((_S82)).xy, ((_S82)).z));
     var previousColor_0 : vec3<f32> = previousSample_0.xyz;
     var frameAge_0 : f32 = previousSample_0.w;
     var color_0 : vec3<f32>;
     var frameAge_1 : f32;
-    if(_S81)
+    if(_S78)
     {
-        var _S89 : f32 = frameAge_0 + 1.0f;
-        color_0 = mix(previousColor_0, _S87, vec3<f32>((1.0f / _S89)));
-        frameAge_1 = _S89;
+        var _S83 : f32 = frameAge_0 + 1.0f;
+        color_0 = mix(previousColor_0, _S81, vec3<f32>((1.0f / _S83)));
+        frameAge_1 = _S83;
     }
     else
     {
-        color_0 = _S87;
+        color_0 = _S81;
         frameAge_1 = 0.0f;
     }
-    textureStore((entryPointParams_textures_current_0), (_S83), (vec4<f32>(max(vec3<f32>(0.0f), color_0), frameAge_1)));
+    textureStore((entryPointParams_textures_current_0), (_S76), (vec4<f32>(max(vec3<f32>(0.0f), color_0), frameAge_1)));
     return;
 }
 
