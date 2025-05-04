@@ -100,10 +100,10 @@ impl Default for ScheduleRunner {
         );
 
         let mut pre_update_render = Schedule::new(PreUpdateRenderSchedule);
-        pre_update_render.add_systems((
-            shader::recompile_shaders,
-            //texture::update_screen_size_textures,
-        ));
+        // pre_update_render.add_systems((
+        //     // shader::recompile_shaders,
+        //     //texture::update_screen_size_textures,
+        // ));
 
         let mut update_render = Schedule::new(UpdateRenderSchedule);
         update_render.add_systems(

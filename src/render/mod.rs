@@ -1,14 +1,9 @@
 use std::sync::Arc;
 
-use bevy_ecs::{entity::Entity, event::Event, resource::Resource};
+use bevy_ecs::{event::Event, resource::Resource};
 use winit::{dpi::PhysicalSize, window::Window};
 
-pub mod binding;
-pub mod buffer;
 pub mod shader;
-pub mod texture;
-pub mod timestamp;
-pub mod vertex;
 
 pub const WGPU_FEATURES: wgpu::Features = wgpu::Features::FLOAT32_FILTERABLE
     .union(wgpu::Features::RG11B10UFLOAT_RENDERABLE)
