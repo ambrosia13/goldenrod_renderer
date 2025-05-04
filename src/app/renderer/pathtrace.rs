@@ -9,7 +9,6 @@ use crate::app::object::binding::ObjectBinding;
 use crate::{
     app::camera::binding::ScreenBinding,
     render::{
-        binding::Binding,
         shader::{Shader, ShaderRecompileEvent, ShaderSource},
         texture::{Texture, TextureType},
         FrameData, GpuHandle, RenderState, WindowResizeEvent,
@@ -23,8 +22,10 @@ pub struct PathtracePass {
     pub color_texture: Texture,
     pub previous_color_texture: Texture,
 
-    texture_binding: Binding,
-    lut_binding: Binding,
+    texture_bind_group_layout: wgpu::BindGroupLayout,
+    texture_bind_group: wgpu::BindGroup,
+
+    lut_bind_group: wgpu::BindGroup,
 
     shader: Shader,
     pipeline_layout: wgpu::PipelineLayout,
@@ -46,13 +47,13 @@ impl PathtracePass {
 
         let (color_texture, previous_color_texture) = Self::create_textures(render_state);
 
-        let texture_binding = Self::create_texture_binding(
+        let (texture_bind_group_layout, texture_bind_group) = Self::create_texture_binding(
             gpu_handle.clone(),
             &color_texture,
             &previous_color_texture,
         );
 
-        let lut_binding = Self::create_lut_binding(gpu_handle.clone());
+        let (lut_bind_group_layout, lut_bind_group) = Self::create_lut_binding(gpu_handle.clone());
 
         let pipeline_layout =
             gpu_handle
@@ -62,8 +63,8 @@ impl PathtracePass {
                     bind_group_layouts: &[
                         &screen_binding.bind_group_layout,
                         &object_binding.bind_group_layout,
-                        texture_binding.bind_group_layout(),
-                        lut_binding.bind_group_layout(),
+                        &texture_bind_group_layout,
+                        &lut_bind_group_layout,
                     ],
                     push_constant_ranges: &[],
                 });
@@ -76,8 +77,9 @@ impl PathtracePass {
         Self {
             color_texture,
             previous_color_texture,
-            texture_binding,
-            lut_binding,
+            texture_bind_group_layout,
+            texture_bind_group,
+            lut_bind_group,
             shader,
             pipeline_layout,
             pipeline,
@@ -111,8 +113,8 @@ impl PathtracePass {
 
         compute_pass.set_bind_group(0, &screen_binding.bind_group, &[]);
         compute_pass.set_bind_group(1, &object_binding.bind_group, &[]);
-        compute_pass.set_bind_group(2, self.texture_binding.bind_group(), &[]);
-        compute_pass.set_bind_group(3, self.lut_binding.bind_group(), &[]);
+        compute_pass.set_bind_group(2, &self.texture_bind_group, &[]);
+        compute_pass.set_bind_group(3, &self.lut_bind_group, &[]);
 
         compute_pass.set_pipeline(&self.pipeline);
 
@@ -134,34 +136,65 @@ impl PathtracePass {
         time_query.write_end_timestamp(encoder);
     }
 
-    fn create_lut_binding(gpu_handle: GpuHandle) -> Binding {
-        let wavelength_to_xyz_texture = Texture::load_raw(
-            gpu_handle.clone(),
-            "assets/textures/wavelength_to_xyz.bin",
-            (471, 1, 1),
-            wgpu::TextureFormat::Rgba32Float,
-            wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
-            TextureType::Texture1d,
-        );
+    fn create_lut_binding(gpu_handle: GpuHandle) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
+        let parent_path = std::env::current_dir().unwrap();
 
-        let rgb_to_spectral_intensity_texture = Texture::load_raw(
-            gpu_handle.clone(),
-            "assets/textures/rgb_to_spectral_intensity.bin",
-            (81, 1, 1),
-            wgpu::TextureFormat::Rgba32Float,
-            wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
-            TextureType::Texture1d,
-        );
+        let wavelength_to_xyz_texture = wgputil::texture::load_raw(
+            &gpu_handle.device,
+            &gpu_handle.queue,
+            parent_path.join("assets/textures/wavelength_to_xyz.bin"),
+            &wgpu::TextureDescriptor {
+                label: Some("wavelength_to_xyz_texture"),
+                size: wgpu::Extent3d {
+                    width: 471,
+                    height: 1,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D1,
+                format: wgpu::TextureFormat::Rgba32Float,
+                usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            },
+        )
+        .unwrap();
 
-        Binding::new(
-            gpu_handle,
+        let rgb_to_spectral_intensity_texture = wgputil::texture::load_raw(
+            &gpu_handle.device,
+            &gpu_handle.queue,
+            parent_path.join("assets/textures/rgb_to_spectral_intensity.bin"),
+            &wgpu::TextureDescriptor {
+                label: Some("rgb_to_spectral_intensity_texture"),
+                size: wgpu::Extent3d {
+                    width: 81,
+                    height: 1,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D1,
+                format: wgpu::TextureFormat::Rgba32Float,
+                usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            },
+        )
+        .unwrap();
+
+        wgputil::binding::create_sequential_linked(
+            &gpu_handle.device,
+            "pathtrace_lut_binding",
             &[
-                wavelength_to_xyz_texture.bind_storage(
-                    &wavelength_to_xyz_texture.view(0..1, 0..1),
+                wgputil::binding::bind_texture_storage(
+                    &wavelength_to_xyz_texture.create_view(&Default::default()),
+                    wavelength_to_xyz_texture.format(),
+                    wgpu::TextureViewDimension::D1,
                     wgpu::StorageTextureAccess::ReadWrite,
                 ),
-                rgb_to_spectral_intensity_texture.bind_storage(
-                    &rgb_to_spectral_intensity_texture.view(0..1, 0..1),
+                wgputil::binding::bind_texture_storage(
+                    &rgb_to_spectral_intensity_texture.create_view(&Default::default()),
+                    rgb_to_spectral_intensity_texture.format(),
+                    wgpu::TextureViewDimension::D1,
                     wgpu::StorageTextureAccess::ReadWrite,
                 ),
             ],
@@ -210,15 +243,28 @@ impl PathtracePass {
         gpu_handle: GpuHandle,
         color_texture: &Texture,
         previous_color_texture: &Texture,
-    ) -> Binding {
-        Binding::new(
-            gpu_handle,
+    ) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
+        wgputil::binding::create_sequential_linked(
+            &gpu_handle.device,
+            "pathtrace_texture_binding",
             &[
-                color_texture.bind_storage(
-                    &color_texture.view(0..1, 0..1),
+                wgputil::binding::bind_texture_storage(
+                    &color_texture.inner().create_view(&Default::default()),
+                    color_texture.inner().format(),
+                    wgpu::TextureViewDimension::D2,
                     wgpu::StorageTextureAccess::ReadWrite,
                 ),
-                previous_color_texture.bind_view(&previous_color_texture.view(0..1, 0..1)),
+                wgputil::binding::bind_texture_view(
+                    &previous_color_texture
+                        .inner()
+                        .create_view(&Default::default()),
+                    wgputil::texture::sample_type(
+                        &gpu_handle.device,
+                        previous_color_texture.inner(),
+                    )
+                    .unwrap(),
+                    wgpu::TextureViewDimension::D2,
+                ),
             ],
         )
     }
@@ -279,15 +325,26 @@ impl PathtracePass {
     ) {
         if resize_events.read().count() > 0 {
             let (color_texture, previous_color_texture) = Self::create_textures(&render_state);
-            let texture_binding = Self::create_texture_binding(
-                render_state.gpu_handle.clone(),
-                &color_texture,
-                &previous_color_texture,
+
+            let texture_bind_group = wgputil::binding::create_sequential_with_layout(
+                &render_state.gpu_handle.device,
+                "pathtrace_texture_binding",
+                &path_tracer.texture_bind_group_layout,
+                &[
+                    wgpu::BindingResource::TextureView(
+                        &color_texture.inner().create_view(&Default::default()),
+                    ),
+                    wgpu::BindingResource::TextureView(
+                        &previous_color_texture
+                            .inner()
+                            .create_view(&Default::default()),
+                    ),
+                ],
             );
 
             path_tracer.color_texture = color_texture;
             path_tracer.previous_color_texture = previous_color_texture;
-            path_tracer.texture_binding = texture_binding;
+            path_tracer.texture_bind_group = texture_bind_group;
         }
 
         if shader_recompile_events.read().count() > 0 {

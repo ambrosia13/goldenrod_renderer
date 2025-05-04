@@ -8,11 +8,9 @@ use gpu_bytes::AsStd140;
 use gpu_bytes_derive::AsStd140;
 use wgpu::util::DeviceExt;
 
-use crate::render::binding::{Binding, BindingEntry};
 use crate::render::{
-    shader::{Shader, ShaderRecompileEvent, ShaderSource},
-    texture::Texture,
-    FrameData, GpuHandle, RenderState, WindowResizeEvent,
+    shader::ShaderRecompileEvent, texture::Texture, FrameData, GpuHandle, RenderState,
+    WindowResizeEvent,
 };
 
 use super::{pathtrace::PathtracePass, profiler::RenderProfiler};

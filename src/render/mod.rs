@@ -19,8 +19,7 @@ pub const WGPU_FEATURES: wgpu::Features = wgpu::Features::FLOAT32_FILTERABLE
     .union(wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES)
     .union(wgpu::Features::TIMESTAMP_QUERY)
     .union(wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS)
-    .union(wgpu::Features::VERTEX_WRITABLE_STORAGE)
-    .union(wgpu::Features::SPIRV_SHADER_PASSTHROUGH);
+    .union(wgpu::Features::VERTEX_WRITABLE_STORAGE); //.union(wgpu::Features::SPIRV_SHADER_PASSTHROUGH);
 
 #[derive(Clone)]
 pub struct GpuHandle {
@@ -68,6 +67,8 @@ impl RenderState {
             })
             .await
             .unwrap();
+
+        log::info!("{:#?}", adapter.get_info());
 
         let (device, queue) = adapter
             .request_device(

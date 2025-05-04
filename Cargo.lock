@@ -3620,7 +3620,7 @@ dependencies = [
 [[package]]
 name = "wgputil"
 version = "0.1.0"
-source = "git+https://github.com/ambrosia13/wgputil.git?branch=wgpu_24_0_3#ad927e9b65b353d7ad42ef2db81229769477d599"
+source = "git+https://github.com/ambrosia13/wgputil.git?branch=wgpu_24_0_3#4e9ae691d8d4fb9c31673ce8c409333ce5594cd4"
 dependencies = [
  "bytemuck",
  "image",
