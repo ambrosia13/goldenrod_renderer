@@ -52,6 +52,22 @@ impl TimeQuery {
         }
     }
 
+    pub fn compute_timestamp_writes(&self) -> wgpu::ComputePassTimestampWrites {
+        wgpu::ComputePassTimestampWrites {
+            query_set: &self.query_set,
+            beginning_of_pass_write_index: Some(0),
+            end_of_pass_write_index: Some(1),
+        }
+    }
+
+    pub fn render_timestamp_writes(&self) -> wgpu::RenderPassTimestampWrites {
+        wgpu::RenderPassTimestampWrites {
+            query_set: &self.query_set,
+            beginning_of_pass_write_index: Some(0),
+            end_of_pass_write_index: Some(1),
+        }
+    }
+
     pub fn write_start_timestamp(&mut self, encoder: &mut wgpu::CommandEncoder) {
         if self.started {
             panic!("Attempted to write a start timestamp more than once");

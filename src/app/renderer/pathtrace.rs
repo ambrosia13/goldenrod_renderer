@@ -97,8 +97,6 @@ impl PathtracePass {
     ) {
         let (_, time_query) = &mut profiler.time_queries[self.time_query_index];
 
-        time_query.write_start_timestamp(encoder);
-
         // Copy current texture to previous texture
         encoder.copy_texture_to_texture(
             self.color_texture.inner().as_image_copy(),
@@ -108,7 +106,7 @@ impl PathtracePass {
 
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("pathtrace_compute_pass"),
-            timestamp_writes: None,
+            timestamp_writes: Some(time_query.compute_timestamp_writes()),
         });
 
         compute_pass.set_bind_group(0, &screen_binding.bind_group, &[]);
@@ -132,8 +130,6 @@ impl PathtracePass {
 
         compute_pass.dispatch_workgroups(workgroups.x, workgroups.y, workgroups.z);
         drop(compute_pass);
-
-        time_query.write_end_timestamp(encoder);
     }
 
     fn create_lut_binding(gpu_handle: GpuHandle) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {

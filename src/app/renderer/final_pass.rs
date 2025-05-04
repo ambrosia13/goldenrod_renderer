@@ -320,8 +320,6 @@ impl FinalPass {
     fn draw(&self, frame: &mut FrameData, profiler: &mut RenderProfiler) {
         let (_, time_query) = &mut profiler.time_queries[self.time_query_index];
 
-        time_query.write_start_timestamp(&mut frame.encoder);
-
         let view = frame
             .surface_texture
             .texture
@@ -340,7 +338,7 @@ impl FinalPass {
                     },
                 })],
                 depth_stencil_attachment: None,
-                timestamp_writes: None,
+                timestamp_writes: Some(time_query.render_timestamp_writes()),
                 occlusion_query_set: None,
             });
 
@@ -351,8 +349,6 @@ impl FinalPass {
 
         render_pass.draw(0..6, 0..1);
         drop(render_pass);
-
-        time_query.write_end_timestamp(&mut frame.encoder);
     }
 
     pub fn init(
