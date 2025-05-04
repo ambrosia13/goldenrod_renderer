@@ -9,8 +9,7 @@ use gpu_bytes_derive::AsStd140;
 use wgpu::util::DeviceExt;
 
 use crate::render::{
-    shader::ShaderRecompileEvent, texture::Texture, FrameData, GpuHandle, RenderState,
-    WindowResizeEvent,
+    shader::ShaderRecompileEvent, FrameData, GpuHandle, RenderState, WindowResizeEvent,
 };
 
 use super::{pathtrace::PathtracePass, profiler::RenderProfiler};
@@ -66,7 +65,7 @@ pub struct FinalPass {
 impl FinalPass {
     fn new(
         render_state: &RenderState,
-        input_texture: &Texture,
+        input_texture: &wgpu::Texture,
         profiler: &mut RenderProfiler,
     ) -> Self {
         let gpu_handle = render_state.gpu_handle.clone();
@@ -299,17 +298,15 @@ impl FinalPass {
     fn create_texture_binding(
         device: &wgpu::Device,
         sampler: &wgpu::Sampler,
-        input_texture: &Texture,
+        input_texture: &wgpu::Texture,
     ) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
         wgputil::binding::create_sequential_linked(
             device,
             "final_texture_binding",
             &[
                 wgputil::binding::bind_texture_view(
-                    &input_texture
-                        .inner()
-                        .create_view(&wgpu::TextureViewDescriptor::default()),
-                    wgputil::texture::sample_type(device, input_texture.inner()).unwrap(),
+                    &input_texture.create_view(&wgpu::TextureViewDescriptor::default()),
+                    wgputil::texture::sample_type(device, input_texture).unwrap(),
                     wgpu::TextureViewDimension::D2,
                 ),
                 wgputil::binding::bind_sampler(sampler, wgpu::SamplerBindingType::NonFiltering),
@@ -378,10 +375,7 @@ impl FinalPass {
                 &final_pass.texture_bind_group_layout,
                 &[
                     wgpu::BindingResource::TextureView(
-                        &pathtrace
-                            .color_texture
-                            .inner()
-                            .create_view(&Default::default()),
+                        &pathtrace.color_texture.create_view(&Default::default()),
                     ),
                     wgpu::BindingResource::Sampler(&final_pass.sampler),
                 ],

@@ -10,7 +10,6 @@ use crate::{
     app::camera::binding::ScreenBinding,
     render::{
         shader::{Shader, ShaderRecompileEvent, ShaderSource},
-        texture::{Texture, TextureType},
         FrameData, GpuHandle, RenderState, WindowResizeEvent,
     },
 };
@@ -19,8 +18,8 @@ use super::profiler::RenderProfiler;
 
 #[derive(Resource)]
 pub struct PathtracePass {
-    pub color_texture: Texture,
-    pub previous_color_texture: Texture,
+    pub color_texture: wgpu::Texture,
+    pub previous_color_texture: wgpu::Texture,
 
     texture_bind_group_layout: wgpu::BindGroupLayout,
     texture_bind_group: wgpu::BindGroup,
@@ -99,9 +98,9 @@ impl PathtracePass {
 
         // Copy current texture to previous texture
         encoder.copy_texture_to_texture(
-            self.color_texture.inner().as_image_copy(),
-            self.previous_color_texture.inner().as_image_copy(),
-            self.color_texture.inner().size(),
+            self.color_texture.as_image_copy(),
+            self.previous_color_texture.as_image_copy(),
+            self.color_texture.size(),
         );
 
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -117,11 +116,7 @@ impl PathtracePass {
         compute_pass.set_pipeline(&self.pipeline);
 
         let workgroup_sizes = UVec3::new(8, 8, 1);
-        let dimensions = UVec3::new(
-            self.color_texture.inner().width(),
-            self.color_texture.inner().height(),
-            1,
-        );
+        let dimensions = UVec3::new(self.color_texture.width(), self.color_texture.height(), 1);
 
         let mut workgroups = dimensions / workgroup_sizes;
 
@@ -197,68 +192,67 @@ impl PathtracePass {
         )
     }
 
-    fn create_textures(render_state: &RenderState) -> (Texture, Texture) {
+    fn create_textures(render_state: &RenderState) -> (wgpu::Texture, wgpu::Texture) {
         let texture_format = wgpu::TextureFormat::Rgba32Float;
 
-        let color_texture = Texture::new(
-            render_state.gpu_handle.clone(),
-            "pathtrace_color_texture".into(),
-            (
-                render_state.get_effective_width() as usize,
-                render_state.get_effective_height() as usize,
-                1,
-            ),
-            1,
-            texture_format,
-            wgpu::TextureUsages::STORAGE_BINDING
-                | wgpu::TextureUsages::COPY_SRC
-                | wgpu::TextureUsages::TEXTURE_BINDING,
-            TextureType::Texture2d,
-        );
+        let color_texture =
+            render_state
+                .gpu_handle
+                .device
+                .create_texture(&wgpu::TextureDescriptor {
+                    label: Some("pathtrace_color_texture"),
+                    size: wgpu::Extent3d {
+                        width: render_state.get_effective_width(),
+                        height: render_state.get_effective_height(),
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: texture_format,
+                    usage: wgpu::TextureUsages::STORAGE_BINDING
+                        | wgpu::TextureUsages::COPY_SRC
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[],
+                });
 
-        let previous_color_texture = Texture::new(
-            render_state.gpu_handle.clone(),
-            "pathtrace_previous_color_texture".into(),
-            (
-                (render_state.effective_viewport_end.0 - render_state.effective_viewport_start.0)
-                    as usize,
-                (render_state.effective_viewport_end.1 - render_state.effective_viewport_start.1)
-                    as usize,
-                1,
-            ),
-            1,
-            texture_format,
-            wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            TextureType::Texture2d,
-        );
+        let previous_color_texture =
+            render_state
+                .gpu_handle
+                .device
+                .create_texture(&wgpu::TextureDescriptor {
+                    label: Some("pathtrace_previous_color_texture"),
+                    size: color_texture.size(),
+                    mip_level_count: color_texture.mip_level_count(),
+                    sample_count: color_texture.sample_count(),
+                    dimension: color_texture.dimension(),
+                    format: color_texture.format(),
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                    view_formats: &[],
+                });
 
         (color_texture, previous_color_texture)
     }
 
     fn create_texture_binding(
         gpu_handle: GpuHandle,
-        color_texture: &Texture,
-        previous_color_texture: &Texture,
+        color_texture: &wgpu::Texture,
+        previous_color_texture: &wgpu::Texture,
     ) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
         wgputil::binding::create_sequential_linked(
             &gpu_handle.device,
             "pathtrace_texture_binding",
             &[
                 wgputil::binding::bind_texture_storage(
-                    &color_texture.inner().create_view(&Default::default()),
-                    color_texture.inner().format(),
+                    &color_texture.create_view(&Default::default()),
+                    color_texture.format(),
                     wgpu::TextureViewDimension::D2,
                     wgpu::StorageTextureAccess::ReadWrite,
                 ),
                 wgputil::binding::bind_texture_view(
-                    &previous_color_texture
-                        .inner()
-                        .create_view(&Default::default()),
-                    wgputil::texture::sample_type(
-                        &gpu_handle.device,
-                        previous_color_texture.inner(),
-                    )
-                    .unwrap(),
+                    &previous_color_texture.create_view(&Default::default()),
+                    wgputil::texture::sample_type(&gpu_handle.device, previous_color_texture)
+                        .unwrap(),
                     wgpu::TextureViewDimension::D2,
                 ),
             ],
@@ -328,12 +322,10 @@ impl PathtracePass {
                 &path_tracer.texture_bind_group_layout,
                 &[
                     wgpu::BindingResource::TextureView(
-                        &color_texture.inner().create_view(&Default::default()),
+                        &color_texture.create_view(&Default::default()),
                     ),
                     wgpu::BindingResource::TextureView(
-                        &previous_color_texture
-                            .inner()
-                            .create_view(&Default::default()),
+                        &previous_color_texture.create_view(&Default::default()),
                     ),
                 ],
             );
