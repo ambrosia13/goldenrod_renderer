@@ -8,10 +8,7 @@ use glam::UVec3;
 use crate::app::object::binding::ObjectBinding;
 use crate::{
     app::camera::binding::ScreenBinding,
-    render::{
-        shader::{Shader, ShaderRecompileEvent, ShaderSource},
-        FrameData, GpuHandle, RenderState, WindowResizeEvent,
-    },
+    render::{shader::ShaderRecompileEvent, FrameData, GpuHandle, RenderState, WindowResizeEvent},
 };
 
 use super::profiler::RenderProfiler;
@@ -26,7 +23,8 @@ pub struct PathtracePass {
 
     lut_bind_group: wgpu::BindGroup,
 
-    shader: Shader,
+    shader_source: wgputil::shader::ShaderSource,
+    shader: wgpu::ShaderModule,
     pipeline_layout: wgpu::PipelineLayout,
     pipeline: wgpu::ComputePipeline,
 
@@ -68,8 +66,8 @@ impl PathtracePass {
                     push_constant_ranges: &[],
                 });
 
-        let (shader, pipeline) =
-            Self::create_shader_and_pipeline(gpu_handle.clone(), &pipeline_layout);
+        let (shader_source, shader) = Self::create_shader(&gpu_handle.device);
+        let pipeline = Self::create_pipeline(&gpu_handle.device, &shader, &pipeline_layout);
 
         let time_query_index = profiler.push(&gpu_handle, "pathtrace");
 
@@ -79,6 +77,7 @@ impl PathtracePass {
             texture_bind_group_layout,
             texture_bind_group,
             lut_bind_group,
+            shader_source,
             shader,
             pipeline_layout,
             pipeline,
@@ -259,28 +258,31 @@ impl PathtracePass {
         )
     }
 
-    fn create_shader_and_pipeline(
-        gpu_handle: GpuHandle,
-        pipeline_layout: &wgpu::PipelineLayout,
-    ) -> (Shader, wgpu::ComputePipeline) {
-        let shader = Shader::new(
-            gpu_handle.clone(),
-            ShaderSource::load_wgsl("assets/shaders/pathtrace.wgsl"),
+    fn create_shader(device: &wgpu::Device) -> (wgputil::shader::ShaderSource, wgpu::ShaderModule) {
+        let parent_path = std::env::current_dir().unwrap();
+
+        let mut shader_source = wgputil::shader::ShaderSource::load_wgsl(
+            parent_path.join("assets/shaders/pathtrace.wgsl"),
         );
 
-        let pipeline =
-            gpu_handle
-                .device
-                .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                    label: Some("pathtrace_compute_pipeline"),
-                    layout: Some(pipeline_layout),
-                    module: shader.module(),
-                    entry_point: Some("compute"),
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    cache: None,
-                });
+        let (shader, error) = wgputil::shader::create_or_fallback(&device, &mut shader_source);
 
-        (shader, pipeline)
+        (shader_source, shader)
+    }
+
+    fn create_pipeline(
+        device: &wgpu::Device,
+        shader: &wgpu::ShaderModule,
+        pipeline_layout: &wgpu::PipelineLayout,
+    ) -> wgpu::ComputePipeline {
+        device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("pathtrace_compute_pipeline"),
+            layout: Some(pipeline_layout),
+            module: shader,
+            entry_point: Some("compute"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
+        })
     }
 
     pub fn init(
@@ -336,8 +338,16 @@ impl PathtracePass {
         }
 
         if shader_recompile_events.read().count() > 0 {
-            let (shader, pipeline) = Self::create_shader_and_pipeline(
-                render_state.gpu_handle.clone(),
+            path_tracer.shader_source.reload();
+
+            let (shader, error) = wgputil::shader::create_or_fallback(
+                &render_state.gpu_handle.device,
+                &mut path_tracer.shader_source,
+            );
+
+            let pipeline = Self::create_pipeline(
+                &render_state.gpu_handle.device,
+                &shader,
                 &path_tracer.pipeline_layout,
             );
 
