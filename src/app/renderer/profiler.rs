@@ -1,8 +1,8 @@
 use bevy_ecs::resource::Resource;
 use bevy_ecs::{system::Commands, world::World};
+use wgputil::GpuHandle;
 
-use crate::render::GpuHandle;
-use crate::render::RenderState;
+use crate::render::SurfaceState;
 
 #[derive(Resource)]
 pub struct RenderProfiler {
@@ -18,15 +18,13 @@ impl RenderProfiler {
         }
     }
 
-    fn read_times(&mut self, gpu_handle: &GpuHandle) {
+    fn read_times(&mut self, gpu: &GpuHandle) {
         // clear previously read times
         self.times.clear();
 
         for (name, time_query) in &self.time_queries {
-            self.times.push((
-                name.clone(),
-                time_query.read(&gpu_handle.device, &gpu_handle.queue),
-            ));
+            self.times
+                .push((name.clone(), time_query.read(gpu).unwrap()));
         }
     }
 
@@ -45,10 +43,10 @@ impl RenderProfiler {
     }
 
     pub fn post_render(world: &mut World) {
-        let render_state = world.resource::<RenderState>();
-        let gpu_handle = render_state.gpu_handle.clone();
+        let surface_state = world.resource::<SurfaceState>();
+        let gpu = surface_state.gpu.clone();
 
         let mut profiler = world.resource_mut::<RenderProfiler>();
-        profiler.read_times(&gpu_handle);
+        profiler.read_times(&gpu);
     }
 }

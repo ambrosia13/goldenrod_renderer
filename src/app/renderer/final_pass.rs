@@ -7,10 +7,10 @@ use glam::Vec2;
 use gpu_bytes::AsStd140;
 use gpu_bytes_derive::AsStd140;
 use wgpu::util::DeviceExt;
+use wgputil::GpuHandle;
 
-use crate::render::{
-    shader::ShaderRecompileEvent, FrameData, GpuHandle, RenderState, WindowResizeEvent,
-};
+use crate::render::{FrameRecord, SurfaceState, WindowResizeEvent};
+use crate::util;
 
 use super::{pathtrace::PathtracePass, profiler::RenderProfiler};
 
@@ -21,15 +21,19 @@ struct FinalUniform {
 }
 
 impl FinalUniform {
-    pub fn from_render_state(render_state: &RenderState) -> Self {
+    pub fn from_render_state(surface_state: &SurfaceState) -> Self {
         let start = Vec2::new(
-            render_state.effective_viewport_start.0 as f32 / render_state.size.width as f32,
-            render_state.effective_viewport_start.1 as f32 / render_state.size.height as f32,
+            surface_state.effective_viewport_start.0 as f32
+                / surface_state.viewport_size.width as f32,
+            surface_state.effective_viewport_start.1 as f32
+                / surface_state.viewport_size.height as f32,
         );
 
         let end = Vec2::new(
-            render_state.effective_viewport_end.0 as f32 / render_state.size.width as f32,
-            render_state.effective_viewport_end.1 as f32 / render_state.size.height as f32,
+            surface_state.effective_viewport_end.0 as f32
+                / surface_state.viewport_size.width as f32,
+            surface_state.effective_viewport_end.1 as f32
+                / surface_state.viewport_size.height as f32,
         );
 
         Self {
@@ -64,24 +68,25 @@ pub struct FinalPass {
 
 impl FinalPass {
     fn new(
-        render_state: &RenderState,
+        surface_state: &SurfaceState,
         input_texture: &wgpu::Texture,
         profiler: &mut RenderProfiler,
     ) -> Self {
-        let gpu_handle = render_state.gpu_handle.clone();
-
-        let sampler = gpu_handle.device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("final_input_texture_sampler"),
-            ..Default::default()
-        });
+        let sampler = surface_state
+            .gpu
+            .device
+            .create_sampler(&wgpu::SamplerDescriptor {
+                label: Some("final_input_texture_sampler"),
+                ..Default::default()
+            });
 
         let (texture_bind_group_layout, texture_bind_group) =
-            Self::create_texture_binding(&render_state.gpu_handle.device, &sampler, input_texture);
+            Self::create_texture_binding(&surface_state.gpu.device, &sampler, input_texture);
 
-        let data = FinalUniform::from_render_state(render_state).as_std140();
+        let data = FinalUniform::from_render_state(surface_state).as_std140();
         let uniform_buffer =
-            render_state
-                .gpu_handle
+            surface_state
+                .gpu
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("final_uniform_buffer"),
@@ -91,16 +96,17 @@ impl FinalPass {
 
         let (uniform_bind_group_layout, uniform_bind_group) =
             wgputil::binding::create_sequential_linked(
-                &render_state.gpu_handle.device,
+                &surface_state.gpu.device,
                 "uniform_binding",
                 &[wgputil::binding::bind_buffer_uniform(&uniform_buffer)],
             );
 
         let (camera_response_bind_group_layout, camera_response_bind_group) =
-            Self::create_lut_binding(gpu_handle.clone());
+            Self::create_lut_binding(surface_state.gpu.clone());
 
         let pipeline_layout =
-            gpu_handle
+            surface_state
+                .gpu
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("final_pipeline_layout"),
@@ -113,16 +119,16 @@ impl FinalPass {
                 });
 
         let (vertex_shader_source, fragment_shader_source, vertex_shader, fragment_shader) =
-            Self::create_shaders(&render_state.gpu_handle.device);
+            Self::create_shaders(&surface_state.gpu.device);
 
         let pipeline = Self::create_pipeline(
-            render_state,
+            surface_state,
             &pipeline_layout,
             &vertex_shader,
             &fragment_shader,
         );
 
-        let time_query_index = profiler.push(&gpu_handle, "final");
+        let time_query_index = profiler.push(&surface_state.gpu, "final");
 
         Self {
             pipeline,
@@ -202,19 +208,19 @@ impl FinalPass {
             &gpu_handle.device,
             "camera_response_binding",
             &[
-                wgputil::binding::bind_texture_view(
+                wgputil::binding::bind_texture(
                     &camera_response_red_view,
                     wgputil::texture::sample_type(&gpu_handle.device, &camera_response_red)
                         .unwrap(),
                     wgpu::TextureViewDimension::D1,
                 ),
-                wgputil::binding::bind_texture_view(
+                wgputil::binding::bind_texture(
                     &camera_response_green_view,
                     wgputil::texture::sample_type(&gpu_handle.device, &camera_response_green)
                         .unwrap(),
                     wgpu::TextureViewDimension::D1,
                 ),
-                wgputil::binding::bind_texture_view(
+                wgputil::binding::bind_texture(
                     &camera_response_blue_view,
                     wgputil::texture::sample_type(&gpu_handle.device, &camera_response_blue)
                         .unwrap(),
@@ -237,19 +243,17 @@ impl FinalPass {
         wgpu::ShaderModule,
         wgpu::ShaderModule,
     ) {
-        let parent_path = std::env::current_dir().unwrap();
-
         let mut vertex_shader_source =
-            wgputil::shader::ShaderSource::load_wgsl(parent_path.join("assets/shaders/frame.wgsl"));
+            wgputil::shader::ShaderSource::load_spirv(util::shader_path("frame.slang"));
 
         let mut fragment_shader_source =
-            wgputil::shader::ShaderSource::load_wgsl(parent_path.join("assets/shaders/final.wgsl"));
+            wgputil::shader::ShaderSource::load_spirv(util::shader_path("final.slang"));
 
         let (vertex_shader, error) =
-            wgputil::shader::create_or_fallback(&device, &mut vertex_shader_source);
+            wgputil::shader::create_or_fallback(device, &mut vertex_shader_source);
 
         let (fragment_shader, error) =
-            wgputil::shader::create_or_fallback(&device, &mut fragment_shader_source);
+            wgputil::shader::create_or_fallback(device, &mut fragment_shader_source);
 
         (
             vertex_shader_source,
@@ -260,13 +264,13 @@ impl FinalPass {
     }
 
     fn create_pipeline(
-        render_state: &RenderState,
+        surface_state: &SurfaceState,
         pipeline_layout: &wgpu::PipelineLayout,
         vertex: &wgpu::ShaderModule,
         fragment: &wgpu::ShaderModule,
     ) -> wgpu::RenderPipeline {
-        render_state
-            .gpu_handle
+        surface_state
+            .gpu
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("final_render_pipeline"),
@@ -285,7 +289,7 @@ impl FinalPass {
                     entry_point: Some("fragment"),
                     compilation_options: Default::default(),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: render_state.config.format,
+                        format: surface_state.config.format,
                         blend: None,
                         write_mask: wgpu::ColorWrites::all(),
                     })],
@@ -304,7 +308,7 @@ impl FinalPass {
             device,
             "final_texture_binding",
             &[
-                wgputil::binding::bind_texture_view(
+                wgputil::binding::bind_texture(
                     &input_texture.create_view(&wgpu::TextureViewDescriptor::default()),
                     wgputil::texture::sample_type(device, input_texture).unwrap(),
                     wgpu::TextureViewDimension::D2,
@@ -314,7 +318,7 @@ impl FinalPass {
         )
     }
 
-    fn draw(&self, frame: &mut FrameData, profiler: &mut RenderProfiler) {
+    fn draw(&self, frame: &mut FrameRecord, profiler: &mut RenderProfiler) {
         let (_, time_query) = &mut profiler.time_queries[self.time_query_index];
 
         let view = frame
@@ -350,7 +354,7 @@ impl FinalPass {
 
     pub fn init(
         mut commands: Commands,
-        render_state: Res<RenderState>,
+        render_state: Res<SurfaceState>,
         pathtrace: Res<PathtracePass>,
         mut profiler: ResMut<RenderProfiler>,
     ) {
@@ -361,16 +365,15 @@ impl FinalPass {
     pub fn update(
         mut final_pass: ResMut<FinalPass>,
         pathtrace: Res<PathtracePass>,
-        mut frame: ResMut<FrameData>,
-        render_state: Res<RenderState>,
+        mut frame: ResMut<FrameRecord>,
+        surface_state: Res<SurfaceState>,
         mut profiler: ResMut<RenderProfiler>,
 
         mut resize_events: EventReader<WindowResizeEvent>,
-        mut shader_recompile_events: EventReader<ShaderRecompileEvent>,
     ) {
         if resize_events.read().count() > 0 {
             final_pass.texture_bind_group = wgputil::binding::create_sequential_with_layout(
-                &render_state.gpu_handle.device,
+                &surface_state.gpu.device,
                 "final_texture_binding",
                 &final_pass.texture_bind_group_layout,
                 &[
@@ -382,34 +385,9 @@ impl FinalPass {
             );
         }
 
-        if shader_recompile_events.read().count() > 0 {
-            final_pass.vertex_shader_source.reload();
-            final_pass.fragment_shader_source.reload();
-
-            let (vertex_shader, error) = wgputil::shader::create_or_fallback(
-                &render_state.gpu_handle.device,
-                &mut final_pass.vertex_shader_source,
-            );
-
-            let (fragment_shader, error) = wgputil::shader::create_or_fallback(
-                &render_state.gpu_handle.device,
-                &mut final_pass.fragment_shader_source,
-            );
-
-            final_pass.vertex_shader = vertex_shader;
-            final_pass.fragment_shader = fragment_shader;
-
-            final_pass.pipeline = Self::create_pipeline(
-                &render_state,
-                &final_pass.pipeline_layout,
-                &final_pass.vertex_shader,
-                &final_pass.fragment_shader,
-            );
-        }
-
-        let data = FinalUniform::from_render_state(&render_state);
+        let data = FinalUniform::from_render_state(&surface_state);
         wgputil::buffer::write_slice(
-            &render_state.gpu_handle.queue,
+            &surface_state.gpu.queue,
             &final_pass.uniform_buffer,
             data.as_std140().as_slice(),
             0,

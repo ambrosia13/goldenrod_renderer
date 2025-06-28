@@ -4,11 +4,14 @@ use bevy_ecs::{
     system::{Commands, Res, ResMut},
 };
 use glam::UVec3;
+use wgputil::GpuHandle;
 
 use crate::app::object::binding::ObjectBinding;
+use crate::render::FrameRecord;
+use crate::util;
 use crate::{
     app::camera::binding::ScreenBinding,
-    render::{shader::ShaderRecompileEvent, FrameData, GpuHandle, RenderState, WindowResizeEvent},
+    render::{SurfaceState, WindowResizeEvent},
 };
 
 use super::profiler::RenderProfiler;
@@ -29,20 +32,18 @@ pub struct PathtracePass {
     pipeline: wgpu::ComputePipeline,
 
     time_query_index: usize,
-
-    _gpu_handle: GpuHandle,
 }
 
 impl PathtracePass {
     fn new(
-        render_state: &RenderState,
+        surface_state: &SurfaceState,
         screen_binding: &ScreenBinding,
         object_binding: &ObjectBinding,
         profiler: &mut RenderProfiler,
     ) -> Self {
-        let gpu_handle = render_state.gpu_handle.clone();
+        let gpu_handle = surface_state.gpu.clone();
 
-        let (color_texture, previous_color_texture) = Self::create_textures(render_state);
+        let (color_texture, previous_color_texture) = Self::create_textures(surface_state);
 
         let (texture_bind_group_layout, texture_bind_group) = Self::create_texture_binding(
             gpu_handle.clone(),
@@ -82,7 +83,6 @@ impl PathtracePass {
             pipeline_layout,
             pipeline,
             time_query_index,
-            _gpu_handle: gpu_handle,
         }
     }
 
@@ -175,13 +175,13 @@ impl PathtracePass {
             &gpu_handle.device,
             "pathtrace_lut_binding",
             &[
-                wgputil::binding::bind_texture_storage(
+                wgputil::binding::bind_storage_texture(
                     &wavelength_to_xyz_texture.create_view(&Default::default()),
                     wavelength_to_xyz_texture.format(),
                     wgpu::TextureViewDimension::D1,
                     wgpu::StorageTextureAccess::ReadWrite,
                 ),
-                wgputil::binding::bind_texture_storage(
+                wgputil::binding::bind_storage_texture(
                     &rgb_to_spectral_intensity_texture.create_view(&Default::default()),
                     rgb_to_spectral_intensity_texture.format(),
                     wgpu::TextureViewDimension::D1,
@@ -191,33 +191,32 @@ impl PathtracePass {
         )
     }
 
-    fn create_textures(render_state: &RenderState) -> (wgpu::Texture, wgpu::Texture) {
+    fn create_textures(surface_state: &SurfaceState) -> (wgpu::Texture, wgpu::Texture) {
         let texture_format = wgpu::TextureFormat::Rgba32Float;
 
-        let color_texture =
-            render_state
-                .gpu_handle
-                .device
-                .create_texture(&wgpu::TextureDescriptor {
-                    label: Some("pathtrace_color_texture"),
-                    size: wgpu::Extent3d {
-                        width: render_state.get_effective_width(),
-                        height: render_state.get_effective_height(),
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: texture_format,
-                    usage: wgpu::TextureUsages::STORAGE_BINDING
-                        | wgpu::TextureUsages::COPY_SRC
-                        | wgpu::TextureUsages::TEXTURE_BINDING,
-                    view_formats: &[],
-                });
+        let color_texture = surface_state
+            .gpu
+            .device
+            .create_texture(&wgpu::TextureDescriptor {
+                label: Some("pathtrace_color_texture"),
+                size: wgpu::Extent3d {
+                    width: surface_state.get_effective_width(),
+                    height: surface_state.get_effective_height(),
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: texture_format,
+                usage: wgpu::TextureUsages::STORAGE_BINDING
+                    | wgpu::TextureUsages::COPY_SRC
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            });
 
         let previous_color_texture =
-            render_state
-                .gpu_handle
+            surface_state
+                .gpu
                 .device
                 .create_texture(&wgpu::TextureDescriptor {
                     label: Some("pathtrace_previous_color_texture"),
@@ -242,13 +241,13 @@ impl PathtracePass {
             &gpu_handle.device,
             "pathtrace_texture_binding",
             &[
-                wgputil::binding::bind_texture_storage(
+                wgputil::binding::bind_storage_texture(
                     &color_texture.create_view(&Default::default()),
                     color_texture.format(),
                     wgpu::TextureViewDimension::D2,
                     wgpu::StorageTextureAccess::ReadWrite,
                 ),
-                wgputil::binding::bind_texture_view(
+                wgputil::binding::bind_texture(
                     &previous_color_texture.create_view(&Default::default()),
                     wgputil::texture::sample_type(&gpu_handle.device, previous_color_texture)
                         .unwrap(),
@@ -259,13 +258,10 @@ impl PathtracePass {
     }
 
     fn create_shader(device: &wgpu::Device) -> (wgputil::shader::ShaderSource, wgpu::ShaderModule) {
-        let parent_path = std::env::current_dir().unwrap();
+        let mut shader_source =
+            wgputil::shader::ShaderSource::load_spirv(util::shader_path("pathtrace.slang"));
 
-        let mut shader_source = wgputil::shader::ShaderSource::load_wgsl(
-            parent_path.join("assets/shaders/pathtrace.wgsl"),
-        );
-
-        let (shader, error) = wgputil::shader::create_or_fallback(&device, &mut shader_source);
+        let (shader, error) = wgputil::shader::create_or_fallback(device, &mut shader_source);
 
         (shader_source, shader)
     }
@@ -287,7 +283,7 @@ impl PathtracePass {
 
     pub fn init(
         mut commands: Commands,
-        render_state: Res<RenderState>,
+        render_state: Res<SurfaceState>,
         screen_binding: Res<ScreenBinding>,
         object_binding: Res<ObjectBinding>,
         mut profiler: ResMut<RenderProfiler>,
@@ -305,21 +301,20 @@ impl PathtracePass {
     #[allow(clippy::too_many_arguments)]
     pub fn update(
         mut path_tracer: ResMut<PathtracePass>,
-        render_state: Res<RenderState>,
+        surface_state: Res<SurfaceState>,
         screen_binding: Res<ScreenBinding>,
         object_binding: Res<ObjectBinding>,
         mut profiler: ResMut<RenderProfiler>,
 
-        mut frame: ResMut<FrameData>,
+        mut frame: ResMut<FrameRecord>,
 
         mut resize_events: EventReader<WindowResizeEvent>,
-        mut shader_recompile_events: EventReader<ShaderRecompileEvent>,
     ) {
         if resize_events.read().count() > 0 {
-            let (color_texture, previous_color_texture) = Self::create_textures(&render_state);
+            let (color_texture, previous_color_texture) = Self::create_textures(&surface_state);
 
             let texture_bind_group = wgputil::binding::create_sequential_with_layout(
-                &render_state.gpu_handle.device,
+                &surface_state.gpu.device,
                 "pathtrace_texture_binding",
                 &path_tracer.texture_bind_group_layout,
                 &[
@@ -335,24 +330,6 @@ impl PathtracePass {
             path_tracer.color_texture = color_texture;
             path_tracer.previous_color_texture = previous_color_texture;
             path_tracer.texture_bind_group = texture_bind_group;
-        }
-
-        if shader_recompile_events.read().count() > 0 {
-            path_tracer.shader_source.reload();
-
-            let (shader, error) = wgputil::shader::create_or_fallback(
-                &render_state.gpu_handle.device,
-                &mut path_tracer.shader_source,
-            );
-
-            let pipeline = Self::create_pipeline(
-                &render_state.gpu_handle.device,
-                &shader,
-                &path_tracer.pipeline_layout,
-            );
-
-            path_tracer.shader = shader;
-            path_tracer.pipeline = pipeline;
         }
 
         path_tracer.draw(

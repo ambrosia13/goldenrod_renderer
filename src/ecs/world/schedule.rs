@@ -13,10 +13,7 @@ use crate::{
         renderer, time,
     },
     ecs::event,
-    render::{
-        shader::{self, ShaderRecompileEvent},
-        WindowResizeEvent,
-    },
+    render::WindowResizeEvent,
 };
 
 #[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
@@ -119,7 +116,6 @@ impl Default for ScheduleRunner {
         let mut init_event = Schedule::new(InitEventSchedule);
         init_event.add_systems((
             event::init::<WindowResizeEvent>,
-            event::init::<ShaderRecompileEvent>,
             event::init::<MaterialPushEvent>,
             event::init::<MaterialPopEvent>,
             event::init::<SpherePushEvent>,
@@ -133,7 +129,6 @@ impl Default for ScheduleRunner {
         let mut update_event = Schedule::new(UpdateEventSchedule);
         update_event.add_systems((
             event::update::<WindowResizeEvent>,
-            event::update::<ShaderRecompileEvent>,
             event::update::<MaterialPushEvent>,
             event::update::<MaterialPopEvent>,
             event::update::<SpherePushEvent>,

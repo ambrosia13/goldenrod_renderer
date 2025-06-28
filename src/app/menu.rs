@@ -13,7 +13,7 @@ use winit::{keyboard::KeyCode, window::Window};
 use crate::{
     ecs::Wrapper,
     egui::EguiRenderState,
-    render::{shader::ShaderRecompileEvent, RenderState, WindowResizeEvent},
+    render::{SurfaceState, WindowResizeEvent},
 };
 
 use super::{
@@ -68,7 +68,7 @@ impl Menu {
     #[allow(clippy::too_many_arguments)]
     pub fn update(
         mut menu: ResMut<Menu>,
-        mut render_state: ResMut<RenderState>,
+        mut render_state: ResMut<SurfaceState>,
         egui_render_state: Res<EguiRenderState>,
         window: Res<Wrapper<Arc<Window>>>,
         input: Res<Input>,
@@ -92,7 +92,6 @@ impl Menu {
             EventWriter<TrianglePushEvent>,
             EventWriter<TrianglePopEvent>,
         ),
-        mut shader_recompile_events: EventWriter<ShaderRecompileEvent>,
         profiler: Res<RenderProfiler>,
         mut resize_events: EventWriter<WindowResizeEvent>,
     ) {
@@ -104,10 +103,6 @@ impl Menu {
         // When the user presses escape, disable fullscreen
         if input.keys.just_pressed(KeyCode::Escape) {
             menu.settings.fullscreen = !menu.settings.fullscreen;
-        }
-
-        if input.keys.just_pressed(KeyCode::KeyR) {
-            shader_recompile_events.write(ShaderRecompileEvent);
         }
 
         let mut fov_sensitivity = 2.5;
@@ -155,10 +150,6 @@ impl Menu {
                     }
 
                     menu.settings.fullscreen = fullscreen_button.clicked();
-
-                    if ui.button("Recompile shaders").clicked() {
-                        shader_recompile_events.write(ShaderRecompileEvent);
-                    }
 
                     ui.separator();
 

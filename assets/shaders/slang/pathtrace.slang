@@ -7,7 +7,7 @@ import lib.object;
 import lib.space;
 import lib.noise;
 import lib.spectrum;
-//import lib.atmosphere;
+import lib.atmosphere;
 
 struct Textures {
     RWTexture2D<float4> current;
@@ -30,7 +30,8 @@ float pathtrace(Ray ray, float wavelength, in Spectrum spectrum, in Objects obje
 
         if (!hit.success) {
             // hit sky
-            radiance += throughput * spectrum.rgbToSpectralRadiance(wavelength, sky(ray, random));
+            float atmosphereRadiance = pathtraceAtmosphere(ray, wavelength, random);
+            radiance += throughput * atmosphereRadiance;
             break;
         }
 
@@ -106,6 +107,7 @@ void compute(
     float radiance = pathtrace(ray, wavelength, spectrum, objects, random);
 
     float3 color = spectrum.spectralRadianceToRgb(wavelength, radiance);
+    color /= 10000.0;
     //float3 color = spectrum.spectralRadianceToRgb(wavelength, transmittance(ray, wavelength, random));
 
     float4 previousSample = textures.previous.Load(int3(globalInvocationId.xy, 0));

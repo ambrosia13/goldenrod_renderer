@@ -1,11 +1,13 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-pub fn path_name_to_string<P: AsRef<Path>>(path: P) -> String {
-    // ew
-    path.as_ref()
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_owned()
+pub fn shader_path<P: AsRef<Path>>(relative_path: P) -> PathBuf {
+    // set the extension accordingly
+    let relative_path = relative_path.as_ref().with_extension("spv");
+
+    // parent dir / assets / shaders / spirv / relative
+    let mut path = std::env::current_dir().unwrap();
+    path.push("assets/shaders/spirv");
+    path.push(relative_path);
+
+    path
 }

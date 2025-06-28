@@ -6,7 +6,7 @@ use bevy_ecs::{
 use glam::{DVec2, Mat3, Mat4, Quat, Vec3};
 use winit::{dpi::PhysicalSize, keyboard::KeyCode};
 
-use crate::render::{RenderState, WindowResizeEvent};
+use crate::render::{SurfaceState, WindowResizeEvent};
 
 use super::{input::Input, time::Time};
 
@@ -161,7 +161,7 @@ impl Camera {
         (rotation, yaw, pitch)
     }
 
-    pub fn init(mut commands: Commands, render_state: Res<RenderState>) {
+    pub fn init(mut commands: Commands, render_state: Res<SurfaceState>) {
         commands.insert_resource(Camera::new(
             Vec3::ZERO,
             Vec3::Z,
@@ -177,7 +177,7 @@ impl Camera {
         mut camera: ResMut<Camera>,
         input: Res<Input>,
         time: Res<Time>,
-        render_state: Res<RenderState>,
+        render_state: Res<SurfaceState>,
         mut resize_events: EventReader<WindowResizeEvent>,
     ) {
         camera.update_position(&input, &time);

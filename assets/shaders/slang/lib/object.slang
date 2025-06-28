@@ -16,7 +16,9 @@ public struct Objects: Hittable {
     public Hit getHit(Ray ray) {
         Hit hit;
 
-        for (int i = 0; i < this.spheres.getCount(); ++i) {
+        // Start iterating from index 1, because the 0th element is garbage data
+
+        for (int i = 1; i < this.spheres.getCount(); ++i) {
             // If we encounter a null value, we break out of the loop
             if (spheres[i].isUnhittable()) {
                 break;
@@ -25,7 +27,7 @@ public struct Objects: Hittable {
             hit = Hit.merge(hit, ray.intersect(spheres[i]));
         }
 
-        for (int i = 0; i < this.aabbs.getCount(); ++i) {
+        for (int i = 1; i < this.aabbs.getCount(); ++i) {
             if (aabbs[i].isUnhittable()) {
                 break;
             }
@@ -33,7 +35,7 @@ public struct Objects: Hittable {
             hit = Hit.merge(hit, ray.intersect(aabbs[i]));
         }
 
-        for (int i = 0; i < this.triangles.getCount(); ++i) {
+        for (int i = 1; i < this.triangles.getCount(); ++i) {
             if (triangles[i].isUnhittable()) {
                 break;
             }

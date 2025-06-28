@@ -35,7 +35,10 @@ public struct Spectrum {
         float3 xyz = lerp(this.wavelengthToXyzLut.Load(icoord).xyz, this.wavelengthToXyzLut.Load(icoord + 1).xyz, fcoord);
         float3 color = xyzToRgb(xyz);
 
-        return color * radiance;
+        float luminousEfficacy = 683.0;
+        float pdf = 1.0 / (WAVELENGTH_RANGE_END - WAVELENGTH_RANGE_START);
+
+        return color * radiance * luminousEfficacy / pdf;
     }
 
     public float rgbToSpectralRadiance(float wavelength, float3 radiance) {

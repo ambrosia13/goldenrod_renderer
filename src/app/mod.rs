@@ -16,7 +16,7 @@ use winit::{
 use crate::{
     ecs::{world::schedule::ScheduleRunner, Wrapper},
     egui::EguiRenderState,
-    render::{FrameData, RenderState, WindowResizeEvent},
+    render::{FrameRecord, SurfaceState, WindowResizeEvent},
 };
 
 pub mod camera;
@@ -65,17 +65,17 @@ impl AppState {
         let mut world = World::new();
         let mut schedule_runner = ScheduleRunner::default();
 
-        let render_state = pollster::block_on(RenderState::new(window.clone()));
+        let surface_state = pollster::block_on(SurfaceState::new(window.clone()));
         let egui_render_state = EguiRenderState::new(
-            &render_state.gpu_handle.device,
-            render_state.config.format,
+            &surface_state.gpu.device,
+            surface_state.config.format,
             None,
             1,
             &window,
         );
 
         world.insert_resource(Wrapper::new(window.clone()));
-        world.insert_resource(render_state);
+        world.insert_resource(surface_state);
         world.insert_resource(egui_render_state);
         world.insert_resource(Input::new());
         world.insert_resource(Time::new());
@@ -164,8 +164,8 @@ impl ApplicationHandler for App {
             // Lifecycle events
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => {
-                let mut render_state = world.resource_mut::<RenderState>();
-                render_state.resize(size);
+                let mut surface_state = world.resource_mut::<SurfaceState>();
+                surface_state.resize(size);
 
                 world.send_event(WindowResizeEvent);
             }
@@ -173,15 +173,15 @@ impl ApplicationHandler for App {
                 // We want another frame after this one
                 window.request_redraw();
 
-                let render_state = world.resource::<RenderState>();
-                let frame = match render_state.begin_frame() {
+                let surface_state = world.resource::<SurfaceState>();
+                let frame = match surface_state.begin_frame() {
                     Ok(r) => r,
                     Err(
                         wgpu::SurfaceError::Lost
                         | wgpu::SurfaceError::Outdated
                         | wgpu::SurfaceError::Other,
                     ) => {
-                        render_state.reconfigure_surface();
+                        surface_state.reconfigure_surface();
                         return;
                     }
                     Err(wgpu::SurfaceError::Timeout) => {
@@ -197,22 +197,19 @@ impl ApplicationHandler for App {
 
                 // We need access to the device, queue, and a view of the surface texture in order to draw egui,
                 // so get those from the render state before dropping it and passing over ownership of the frame data
-                let gpu_handle = render_state.gpu_handle.clone();
-                let surface_texture_view = frame
-                    .surface_texture
-                    .texture
-                    .create_view(&Default::default());
+                let gpu_handle = surface_state.gpu.clone();
+                let surface_texture_view = frame.surface_texture_view.clone();
 
                 let mut egui_render_state = world.resource_mut::<EguiRenderState>();
                 egui_render_state.begin_frame(window);
 
                 // Pass over ownership of the frame data to the world, to let all the systems freely use it
-                world.insert_resource(frame);
+                world.insert_resource(FrameRecord(frame));
                 schedule_runner.update(world);
 
                 // Now that all systems are done running, take frame data back out so we can use it to finish
                 // drawing egui and then send all commands to the GPU
-                let mut frame = world.remove_resource::<FrameData>().unwrap();
+                let mut frame = world.remove_resource::<FrameRecord>().unwrap();
 
                 let mut egui_render_state = world.resource_mut::<EguiRenderState>();
                 egui_render_state.end_frame_and_draw(
@@ -227,8 +224,8 @@ impl ApplicationHandler for App {
                     },
                 );
 
-                let render_state = world.resource_mut::<RenderState>();
-                render_state.finish_frame(frame);
+                let surface_state = world.resource_mut::<SurfaceState>();
+                surface_state.finish_frame(frame.0);
 
                 // Read the timestamps now that the encoder has been submitted
                 profiler::RenderProfiler::post_render(world);

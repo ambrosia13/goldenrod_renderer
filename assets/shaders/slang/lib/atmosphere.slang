@@ -6,6 +6,10 @@ namespace DeltaTrackCollision {
     public static const uint OZONE_ABSORPTION = 4;
 }
 
+enum Collision {
+    NULL, BOUNDARY, RAYLEIGH, MIE, OZONE,
+}
+
 import header;
 import intersect;
 import object;
@@ -110,7 +114,7 @@ public struct AtmosphereComposition {
     }
 }
 
-static const float earthAlbedo = 0.3;
+static const float earthAlbedo = 0.15;
 
 static const float earthRadius = 6.360e6;
 static const float atmosphereRadius = 6.460e6;
@@ -118,8 +122,8 @@ static const float atmosphereRadius = 6.460e6;
 // 500 meters above the ground
 static const float3 planetPos = float3(0.0, -earthRadius - 500.0, 0.0);
 
-static const Sphere earthShell = Sphere(float3(0.0), earthRadius);
-static const Sphere atmosphereShell = Sphere(float3(0.0), atmosphereRadius);
+static const Sphere earthShell = Sphere(planetPos, earthRadius);
+static const Sphere atmosphereShell = Sphere(planetPos, atmosphereRadius);
 
 float altitude(float3 position) {
     return distance(position, planetPos) - earthRadius;
@@ -130,20 +134,68 @@ float getRayleighPhase(float cosTheta) {
 }
 
 float getRayleighDensity(float altitude) {
-    const float scale = 8000.0;
-    return exp(-altitude / scale);
+    return exp(-pow(max(0.0, altitude), 1.13102) / 28377.2);
+}
+
+// TODO: find reference
+float3 getRayleighDirection(float3 direction, inout Random random) {
+    float3x3 tbn = getTbnMatrix(direction);
+
+    float cosTheta;
+    float u;
+
+    do {
+        cosTheta = lerp(-1.0, 1.0, random.getFloat());
+        u = random.getFloat();
+    } while (u > 3.0 / 4.0 * (1.0 + cosTheta * cosTheta));
+
+    float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+    float phi = 2.0 * PI * random.getFloat();
+
+    float3 dir = float3(
+        cos(phi) * sinTheta,
+        cosTheta,
+        sin(phi) * sinTheta
+    );
+
+    return mul(dir, tbn);
+}
+
+float getMiePhase(float cosTheta) {
+    float g = 0.75;
+    return 1.0 / (4.0 * PI) * (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosTheta, 1.5);
 }
 
 float getMieDensity(float altitude) {
-    const float scale = 1200.0;
-    return exp(-altitude / scale);
+    return exp(-max(0.0, altitude) / 1400.0);
 }
 
+float3 getMieDirection(float3 direction, inout Random random) {
+    float3x3 tbn = getTbnMatrix(direction);
+
+    float g = 0.75;
+
+	float t = (1.0 - g * g) / (1.0 - g + 2.0 * g * random.getFloat());
+	float cos_theta = (1.0 + g * g - t) / (2.0 * g);
+	float sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+	float phi = 2.0 * PI * random.getFloat();
+	
+	float3 dir = float3(
+        cos(phi) * sin_theta, 
+        cos_theta, 
+        sin(phi) * sin_theta
+    );
+    
+	return mul(dir, tbn);
+}
+
+// TODO: find reference
 float getOzoneDensity(float altitude) {
     float x = (max(0.0, altitude) - 22000.0) / 6092.04;
     return 2.0 / (exp(-x) + exp(x));
 }
 
+// TODO: find reference
 float getSunIrradiance(float wavelength) {
     return pow(1510.51 / wavelength, 5.0) / (exp(2444.32 / wavelength) - 1.0);
 }
@@ -157,7 +209,14 @@ public struct Coefficients {
         this.absorption = absorption;
     }
 
+    // https://en.wikipedia.org/wiki/Rayleigh_scattering
     static Coefficients rayleigh(float wavelength) {
+        // refractive index of air
+        const float n = 1.000279;
+        const float n2 = n * n;
+
+        //float scattering = (8.0 * PI / 3.0) * pow(2.0 * PI / wavelength, 4.0) * pow((n2 - 1) / (n2 + 2), 2.0);
+
         float scattering = 2.504e-5 * 3.7307e10 / pow(wavelength - 13.6111, 4.0);
         float absorption = 0.0;
 
@@ -165,6 +224,7 @@ public struct Coefficients {
         return Coefficients(scattering, absorption);
     }
 
+    // TODO: find reference
     static Coefficients mie(float wavelength) {
         float turbidity = 1.0;
 
@@ -178,6 +238,7 @@ public struct Coefficients {
         return Coefficients(scattering, absorption);
     }
 
+    // TODO: find reference
     static Coefficients ozone(float wavelength) {
         float scattering = 0.0;
         float absorption = 1.2 * 4.86e18 * 1e-4 * 4.76296e-21 * exp(-pow((wavelength - 592.281) / 76.7895, 2.0));
@@ -276,15 +337,27 @@ uint deltaTrack(Ray ray, AtmosphereSample baseSample, float wavelength, inout Ra
             continue;
         }
 
-        float r = random.getFloat() * totalExtinction;
+        float r = random.getFloat() * freePathCoefficient;
 
-        if (r < sample.rayleigh.extinction()) {
-            return DeltaTrackCollision.RAYLEIGH_SCATTERING;
-        } else if (r < sample.mie.extinction()) {
-            return DeltaTrackCollision.MIE_SCATTERING;
-        } else {
+        if (r < totalExtinction) {
+            if (r < sample.rayleigh.scattering) {
+                return DeltaTrackCollision.RAYLEIGH_SCATTERING;
+            }
+
+            if (r < sample.rayleigh.scattering + sample.mie.scattering) {
+                return DeltaTrackCollision.MIE_SCATTERING;
+            }
+
             return DeltaTrackCollision.OZONE_ABSORPTION;
         }
+
+        // if (r < sample.rayleigh.extinction()) {
+        //     return DeltaTrackCollision.RAYLEIGH_SCATTERING;
+        // } else if (r < sample.mie.extinction()) {
+        //     return DeltaTrackCollision.MIE_SCATTERING;
+        // } else {
+        //     return DeltaTrackCollision.OZONE_ABSORPTION;
+        // }
     }
 
     return DeltaTrackCollision.NULL;
@@ -324,11 +397,40 @@ float ratioTrack(Ray ray, AtmosphereSample baseSample, float wavelength, inout R
     return transmittance;
 }
 
-float pathtraceAtmosphere(Ray ray, float wavelength, inout Random random) {
+float sunTransmittance(Ray sunRay, AtmosphereSample baseSample, float wavelength, inout Random random) {
+    float transmittance = 1.0;
+    for (uint i = 0; i < 256; i++) {
+        Hit earthHit = sunRay.intersect(earthShell);
+        Hit atmosphereHit = sunRay.intersect(atmosphereShell);
+        Hit closestHit = Hit.merge(earthHit, atmosphereHit);
+
+        if (!closestHit.success) {
+            return transmittance;
+        }
+
+        if (earthHit.success) {
+            return 0.0;
+        }
+
+        float _t;
+        transmittance *= ratioTrack(sunRay, baseSample, wavelength, random, closestHit.distance, _t);
+        sunRay.pos += sunRay.dir * closestHit.distance - closestHit.normal;
+
+        if (transmittance < 1e-6) {
+            break;
+        }
+    }
+
+    return transmittance;
+}
+
+public float pathtraceAtmosphere(Ray ray, float wavelength, inout Random random) {
     // skip path tracing if the ray is inside the earth bc wtf
-    if (distance(ray.pos, earthShell.position) < earthRadius) {
+    if (distance(ray.pos, earthShell.position) < earthShell.radius) {
         return 0.0;
     }
+
+    const float eps = 1.0;
 
     bool isInsideAtmosphere = distance(ray.pos, atmosphereShell.position) < atmosphereRadius;
 
@@ -356,40 +458,55 @@ float pathtraceAtmosphere(Ray ray, float wavelength, inout Random random) {
         float t = 0.0;
         uint collisionType = deltaTrack(ray, baseSample, wavelength, random, tMax, t);
 
-        float _t = 0.0;
-        Ray sunRay = Ray(ray.pos, normalize(float3(0.1, 0.4, 0.3)));
-        float sunTransmittance = ratioTrack(sunRay, baseSample, wavelength, random, tMax, _t);
-        float sunEmission = sunIrradiance * sunTransmittance;
-        
-        if (collisionType == DeltaTrackCollision.NULL) {
-            break; // no collision with any particle
-        } else if (collisionType == DeltaTrackCollision.BOUNDARY) { // hit planet or atmosphere boundary
-            if (earthHit.success) { // hit planet, using lambertian material                
-                throughput *= earthAlbedo; // * brdf, = 1 / PI implicitly multiplied
-                radiance += throughput * sunEmission;
+        // float _t = 0.0;
+        // float sunTransmittance = ratioTrack(sunRay, baseSample, wavelength, random, closestHit.distance, _t);
+        // Ray sunRay = Ray(ray.pos, normalize(float3(0.1, 0.4, 0.3)));
+        // float sunTransmittance = sunTransmittance(sunRay, baseSample, wavelength, random);
+        // float sunEmission = sunIrradiance * sunTransmittance;
 
+        if (collisionType == DeltaTrackCollision.BOUNDARY) { // hit planet or atmosphere boundary
+            if (earthHit.success) { // hit planet, using lambertian material                
                 // bounce off the earth surface
-                nextRay.pos = earthHit.position + earthHit.normal * 0.0001;
+                nextRay.pos = earthHit.position + earthHit.normal * eps;
                 nextRay.dir = random.getCosineVector(earthHit.normal);
+
+                Ray sunRay = Ray(nextRay.pos, normalize(float3(0.1, 0.4, 0.3)));
+                float sunTransmittance = sunTransmittance(sunRay, baseSample, wavelength, random);
+                float sunEmission = sunIrradiance * sunTransmittance;                
+
+                radiance += earthAlbedo * throughput * sunEmission * max(0.0, dot(earthHit.normal, sunRay.dir)) / PI;
+                throughput *= earthAlbedo; // * brdf, = 1 / PI implicitly multiplied
+
             } else { // hit atmosphere edge, atmosphereHit.success
-                if (isInsideAtmosphere) { // if we're exiting the atmosphere, exit the loop
-                    break;
-                } else {
-                    // enter the atmosphere
-                    // we have already confirmed there was an atmosphere hit
-                    nextRay.pos = atmosphereHit.position - atmosphereHit.normal * 0.0001;
-                    nextRay.dir = ray.dir;
-                }
+                nextRay.pos = ray.pos + ray.dir * t - closestHit.normal * eps;
+                nextRay.dir = ray.dir;
             }
         } else if (
             // any scattering
             collisionType == DeltaTrackCollision.RAYLEIGH_SCATTERING || 
             collisionType == DeltaTrackCollision.MIE_SCATTERING
         ) {
-            float3 collisionPos = ray.pos + ray.dir * t;
+            nextRay.pos = ray.pos + ray.dir * t;
+
+            Ray sunRay = Ray(nextRay.pos, normalize(float3(0.1, 0.4, 0.3)));
+            float sunTransmittance = sunTransmittance(sunRay, baseSample, wavelength, random);
+            float sunEmission = sunIrradiance * sunTransmittance;                
+
             float cosTheta = dot(ray.dir, sunRay.dir);
 
+            float phase = 0.0;
 
+            if (collisionType == DeltaTrackCollision.RAYLEIGH_SCATTERING) {
+                phase = getRayleighPhase(cosTheta);
+                nextRay.dir = getRayleighDirection(ray.dir, random);
+            } else if (collisionType == DeltaTrackCollision.MIE_SCATTERING) {
+                phase = getMiePhase(cosTheta);
+                nextRay.dir = getMieDirection(ray.dir, random);
+            }
+
+            radiance += sunEmission * phase * throughput;
+        } else {
+            break;
         }
 
         // russian roulette path termination
@@ -404,6 +521,8 @@ float pathtraceAtmosphere(Ray ray, float wavelength, inout Random random) {
 
         ray = nextRay;
     }
+
+    return radiance;
 }
 
 // float pathtraceAtmosphere(Ray ray, float wavelength, inout Random random) {

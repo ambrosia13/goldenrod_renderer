@@ -7,7 +7,7 @@ use wgpu::util::DeviceExt;
 
 use crate::{
     app::object::{Aabb, Material, Sphere, Triangle},
-    render::RenderState,
+    render::SurfaceState,
 };
 
 use super::Objects;
@@ -24,11 +24,11 @@ pub struct ObjectBinding {
 }
 
 impl ObjectBinding {
-    pub fn init(mut commands: Commands, render_state: Res<RenderState>) {
+    pub fn init(mut commands: Commands, surface_state: Res<SurfaceState>) {
         // create empty buffers at first
         let create_buffer = |name: &str, data: &[u8]| {
-            render_state
-                .gpu_handle
+            surface_state
+                .gpu
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some(name),
@@ -48,7 +48,7 @@ impl ObjectBinding {
         let triangles_buffer = create_buffer("triangles_buffer", triangles.as_std430().as_slice());
 
         let (bind_group_layout, bind_group) = wgputil::binding::create_sequential_linked(
-            &render_state.gpu_handle.device,
+            &surface_state.gpu.device,
             "object_binding",
             &[
                 wgputil::binding::bind_buffer_storage(&materials_buffer, true),
@@ -71,7 +71,7 @@ impl ObjectBinding {
     }
 
     pub fn update(
-        render_state: Res<RenderState>,
+        surface_state: Res<SurfaceState>,
         mut object_binding: ResMut<ObjectBinding>,
         mut objects: ResMut<Objects>,
     ) {
@@ -85,7 +85,7 @@ impl ObjectBinding {
 
         let usage = wgpu::BufferUsages::STORAGE;
 
-        let device = &render_state.gpu_handle.device;
+        let device = &surface_state.gpu.device;
         object_binding.materials_buffer =
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("materials_buffer"),

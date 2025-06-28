@@ -7,7 +7,7 @@ use gpu_bytes::AsStd140;
 use gpu_bytes_derive::{AsStd140, AsStd430};
 use wgpu::util::DeviceExt;
 
-use crate::render::RenderState;
+use crate::render::SurfaceState;
 
 use super::Camera;
 
@@ -24,14 +24,14 @@ pub struct ScreenBinding {
 }
 
 impl ScreenBinding {
-    pub fn init(mut commands: Commands, render_state: Res<RenderState>) {
+    pub fn init(mut commands: Commands, surface_state: Res<SurfaceState>) {
         // use default values when creating
         let camera_uniform = CameraUniform::default();
         let view_uniform = ViewUniform::default();
 
         let camera_buffer =
-            render_state
-                .gpu_handle
+            surface_state
+                .gpu
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("camera_buffer"),
@@ -40,8 +40,8 @@ impl ScreenBinding {
                 });
 
         let view_buffer =
-            render_state
-                .gpu_handle
+            surface_state
+                .gpu
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("view_buffer"),
@@ -50,7 +50,7 @@ impl ScreenBinding {
                 });
 
         let (bind_group_layout, bind_group) = wgputil::binding::create_sequential_linked(
-            &render_state.gpu_handle.device,
+            &surface_state.gpu.device,
             "screen_binding",
             &[
                 wgputil::binding::bind_buffer_uniform(&camera_buffer),
@@ -71,21 +71,21 @@ impl ScreenBinding {
     }
 
     pub fn update(
-        render_state: Res<RenderState>,
+        surface_state: Res<SurfaceState>,
         mut screen_binding: ResMut<ScreenBinding>,
         camera: Res<Camera>,
     ) {
         screen_binding.camera_uniform.update_from(&camera);
         wgputil::buffer::write_slice(
-            &render_state.gpu_handle.queue,
+            &surface_state.gpu.queue,
             &screen_binding.camera_buffer,
             screen_binding.camera_uniform.as_std140().as_slice(),
             0,
         );
 
-        screen_binding.view_uniform.update_from(&render_state);
+        screen_binding.view_uniform.update_from(&surface_state);
         wgputil::buffer::write_slice(
-            &render_state.gpu_handle.queue,
+            &surface_state.gpu.queue,
             &screen_binding.view_buffer,
             screen_binding.view_uniform.as_std140().as_slice(),
             0,
@@ -151,7 +151,7 @@ pub struct ViewUniform {
 }
 
 impl ViewUniform {
-    fn update_from(&mut self, render_state: &RenderState) {
+    fn update_from(&mut self, render_state: &SurfaceState) {
         self.width = render_state.get_effective_width();
         self.height = render_state.get_effective_height();
         self.aspect_ratio = self.width as f32 / self.height as f32;
