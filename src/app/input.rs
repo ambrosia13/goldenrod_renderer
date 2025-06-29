@@ -2,11 +2,7 @@ use std::collections::HashSet;
 
 use bevy_ecs::system::ResMut;
 use bevy_ecs::{event::EventReader, resource::Resource};
-use glam::DVec2;
-use winit::{
-    event::{ElementState, MouseButton},
-    keyboard::KeyCode,
-};
+use winit::{event::MouseButton, keyboard::KeyCode};
 
 use crate::ecs::events::{KeyEvent, MouseInput};
 
@@ -14,7 +10,6 @@ use crate::ecs::events::{KeyEvent, MouseInput};
 pub struct Input {
     pub keys: ButtonInputs<KeyCode>,
     pub mouse_buttons: ButtonInputs<MouseButton>,
-    mouse_delta: DVec2,
 }
 
 impl Input {
@@ -22,21 +17,10 @@ impl Input {
         Self {
             keys: ButtonInputs::new(),
             mouse_buttons: ButtonInputs::new(),
-            mouse_delta: DVec2::ZERO,
         }
     }
 
-    pub fn set_mouse_delta(&mut self, delta_x: f64, delta_y: f64) {
-        self.mouse_delta = DVec2::new(delta_x, delta_y);
-    }
-
-    #[expect(unused)]
-    pub fn mouse_delta(&self) -> DVec2 {
-        self.mouse_delta
-    }
-
     pub fn update(&mut self) {
-        self.mouse_delta = DVec2::ZERO;
         self.keys.update();
         self.mouse_buttons.update();
     }

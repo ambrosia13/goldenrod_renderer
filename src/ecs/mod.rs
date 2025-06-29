@@ -4,7 +4,7 @@ use bevy_ecs::resource::Resource;
 
 mod event;
 pub mod events;
-pub mod world;
+pub mod schedule;
 
 #[derive(Resource)]
 pub struct Wrapper<T> {

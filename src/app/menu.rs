@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bevy_ecs::{
-    event::{Event, EventWriter},
+    event::EventWriter,
     resource::Resource,
     system::{Res, ResMut},
     world::World,
@@ -19,10 +19,8 @@ use crate::{
 use super::{
     camera::Camera,
     fps::FpsCounter,
-    input::Input,
     object::{Aabb, Material, MaterialType, Objects, Sphere, Triangle},
     renderer::profiler::RenderProfiler,
-    time::Time,
 };
 
 fn vec3_editor(value: &mut Vec3, ui: &mut Ui) {

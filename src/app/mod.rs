@@ -14,7 +14,7 @@ use winit::{
 use crate::{
     ecs::{
         events::{KeyEvent, MenuResizeEvent, MouseInput, MouseMotion},
-        world::schedule::Schedules,
+        schedule::Schedules,
         Wrapper,
     },
     egui::EguiRenderState,

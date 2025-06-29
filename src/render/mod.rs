@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use bevy_ecs::{event::Event, resource::Resource};
+use bevy_ecs::resource::Resource;
 use winit::{dpi::PhysicalSize, window::Window};
 
 pub const WGPU_FEATURES: wgpu::Features = wgpu::Features::FLOAT32_FILTERABLE
@@ -14,7 +14,6 @@ pub const WGPU_FEATURES: wgpu::Features = wgpu::Features::FLOAT32_FILTERABLE
     .union(wgpu::Features::ADDRESS_MODE_CLAMP_TO_ZERO)
     .union(wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES)
     .union(wgpu::Features::TIMESTAMP_QUERY)
-    .union(wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS)
     .union(wgpu::Features::VERTEX_WRITABLE_STORAGE)
     .union(wgpu::Features::SPIRV_SHADER_PASSTHROUGH);
 

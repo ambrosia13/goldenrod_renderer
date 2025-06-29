@@ -255,7 +255,7 @@ impl PathtracePass {
         let mut shader_source =
             wgputil::shader::ShaderSource::load_spirv(util::shader_path("pathtrace.slang"));
 
-        let (shader, error) = wgputil::shader::create_or_fallback(device, &mut shader_source);
+        let (shader, _error) = wgputil::shader::create_or_fallback(device, &mut shader_source);
 
         (shader_source, shader)
     }
