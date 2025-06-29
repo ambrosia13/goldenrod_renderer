@@ -1,172 +1,174 @@
-use bevy_ecs::{
-    schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel},
-    world::World,
-};
+use bevy_ecs::schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel};
 
 use crate::{
     app::{
-        camera, fps, input, menu,
-        object::{
-            self, AabbPopEvent, AabbPushEvent, MaterialPopEvent, MaterialPushEvent, SpherePopEvent,
-            SpherePushEvent, TrianglePopEvent, TrianglePushEvent,
-        },
-        renderer, time,
+        camera, control, fps, input, menu, object,
+        renderer::{self, profiler},
+        time,
     },
-    ecs::event,
-    render::WindowResizeEvent,
+    ecs::{
+        event,
+        events::{KeyEvent, MenuResizeEvent, MouseInput, MouseMotion},
+    },
 };
 
-#[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
-struct InitRenderSchedule;
+/*
+***App lifecycle***
+
+Startup:
+    OnInitEventSetup
+    OnInitRenderSetup
+    OnInitAppSetup
+
+Per-frame:
+    OnRedrawPreFrame
+    OnRedrawRender
+    OnRedrawPostFrame
+    OnRedrawEventUpdate
+
+Event-driven:
+    OnResize
+*/
 
 #[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
-struct InitMainSchedule;
+struct OnResizeSchedule;
 
 #[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
-struct InitEventSchedule;
+struct OnInitEventSetupSchedule;
 
 #[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
-struct PreUpdateRenderSchedule;
+struct OnInitRenderSetupSchedule;
 
 #[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
-struct UpdateRenderSchedule;
+struct OnInitAppSetupSchedule;
 
 #[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
-struct PostUpdateRenderSchedule;
+struct OnRedrawPreFrameSchedule;
 
 #[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
-struct UpdateMainSchedule;
+struct OnRedrawRenderSchedule;
 
 #[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
-struct PostUpdateMainSchedule;
+struct OnRedrawPostFrameSchedule;
 
 #[derive(ScheduleLabel, Eq, PartialEq, Copy, Clone, Hash, Debug)]
-struct UpdateEventSchedule;
+struct OnRedrawEventUpdateSchedule;
 
-pub struct ScheduleRunner {
-    // Startup schedules
-    init_render: Schedule,
-    init_main: Schedule,
-    init_event: Schedule,
+pub struct Schedules {
+    // startup schedules
+    pub on_init_event_setup: Schedule,
+    pub on_init_render_setup: Schedule,
+    pub on_init_app_setup: Schedule,
 
-    // Update schedules
-    pre_update_render: Schedule,
-    update_render: Schedule,
-    post_update_render: Schedule,
-    update_main: Schedule,
-    post_update_main: Schedule,
-    update_event: Schedule,
+    // per-frame schedules
+    pub on_redraw_pre_frame: Schedule,
+    pub on_redraw_render: Schedule,
+    pub on_redraw_post_frame: Schedule,
+    pub on_redraw_event_update: Schedule,
+
+    // event-driven schedules
+    pub on_resize: Schedule,
 }
 
-impl Default for ScheduleRunner {
+impl Default for Schedules {
     fn default() -> Self {
-        let mut init_main = Schedule::new(InitMainSchedule);
-        init_main.add_systems((
-            fps::FpsCounter::init,
-            menu::Menu::init,
-            object::Objects::init,
-            object::binding::ObjectBinding::init,
-            camera::Camera::init,
-            camera::binding::ScreenBinding::init,
+        // startup schedules
+        let mut on_init_event_setup = Schedule::new(OnInitEventSetupSchedule);
+        on_init_event_setup.add_systems((
+            event::init::<MenuResizeEvent>,
+            event::init::<MouseMotion>,
+            event::init::<KeyEvent>,
+            event::init::<MouseInput>,
         ));
 
-        let mut update_main = Schedule::new(UpdateMainSchedule);
-        update_main.add_systems((
-            menu::Menu::update,
-            object::Objects::update,
-            object::binding::ObjectBinding::update,
-            camera::Camera::update,
-            camera::binding::ScreenBinding::update,
-        ));
-
-        let mut post_update_main = Schedule::new(PostUpdateMainSchedule);
-        post_update_main.add_systems((
-            input::update_system,
-            // Updating the fps counter comes before the time so we can get the most accurate time before the frame ends
-            (time::update_system).chain(),
-        ));
-
-        let mut init_render = Schedule::new(InitRenderSchedule);
-        init_render.add_systems(
+        let mut on_init_render_setup = Schedule::new(OnInitRenderSetupSchedule);
+        on_init_render_setup.add_systems(
             (
-                renderer::profiler::RenderProfiler::init,
-                renderer::pathtrace::PathtracePass::init,
-                renderer::final_pass::FinalPass::init,
+                (
+                    object::binding::ObjectBinding::init,
+                    camera::binding::ScreenBinding::init,
+                    renderer::profiler::RenderProfiler::init,
+                ),
+                (
+                    renderer::pathtrace::PathtracePass::init,
+                    renderer::final_pass::FinalPass::init,
+                )
+                    .chain(),
             )
                 .chain(),
         );
 
-        let mut pre_update_render = Schedule::new(PreUpdateRenderSchedule);
-        // pre_update_render.add_systems((
-        //     // shader::recompile_shaders,
-        //     //texture::update_screen_size_textures,
-        // ));
+        let mut on_init_app_setup = Schedule::new(OnInitAppSetupSchedule);
+        on_init_app_setup.add_systems((
+            fps::FpsCounter::init,
+            menu::Menu::init,
+            object::Objects::init,
+            camera::Camera::init,
+        ));
 
-        let mut update_render = Schedule::new(UpdateRenderSchedule);
-        update_render.add_systems(
+        // per-frame schedules
+        let mut on_redraw_pre_frame = Schedule::new(OnRedrawPreFrameSchedule);
+        on_redraw_pre_frame.add_systems(
+            (
+                // Input processing before everything else
+                input::handle_keyboard_input_event,
+                input::handle_mouse_input_event,
+                (control::input_control, camera::Camera::update),
+            )
+                .chain(),
+        );
+
+        let mut on_redraw_render = Schedule::new(OnRedrawRenderSchedule);
+        on_redraw_render.add_systems((
+            menu::Menu::update,
+            object::binding::ObjectBinding::update,
+            camera::binding::ScreenBinding::update,
             (
                 renderer::pathtrace::PathtracePass::update,
                 renderer::final_pass::FinalPass::update,
             )
                 .chain(),
-        );
-
-        let post_update_render = Schedule::new(PostUpdateRenderSchedule);
-
-        let mut init_event = Schedule::new(InitEventSchedule);
-        init_event.add_systems((
-            event::init::<WindowResizeEvent>,
-            event::init::<MaterialPushEvent>,
-            event::init::<MaterialPopEvent>,
-            event::init::<SpherePushEvent>,
-            event::init::<SpherePopEvent>,
-            event::init::<AabbPushEvent>,
-            event::init::<AabbPopEvent>,
-            event::init::<TrianglePushEvent>,
-            event::init::<TrianglePopEvent>,
         ));
 
-        let mut update_event = Schedule::new(UpdateEventSchedule);
-        update_event.add_systems((
-            event::update::<WindowResizeEvent>,
-            event::update::<MaterialPushEvent>,
-            event::update::<MaterialPopEvent>,
-            event::update::<SpherePushEvent>,
-            event::update::<SpherePopEvent>,
-            event::update::<AabbPushEvent>,
-            event::update::<AabbPopEvent>,
-            event::update::<TrianglePushEvent>,
-            event::update::<TrianglePopEvent>,
+        let mut on_redraw_post_frame = Schedule::new(OnRedrawPostFrameSchedule);
+        on_redraw_post_frame.add_systems(
+            (
+                (
+                    input::update_system,
+                    time::update_system,
+                    profiler::RenderProfiler::post_render,
+                ),
+                // Run the fps update after EVERYTHING is done
+                fps::FpsCounter::update,
+            )
+                .chain(),
+        );
+
+        let mut on_redraw_event_update = Schedule::new(OnRedrawEventUpdateSchedule);
+        on_redraw_event_update.add_systems((
+            event::update::<MenuResizeEvent>,
+            event::update::<MouseMotion>,
+            event::update::<KeyEvent>,
+            event::update::<MouseInput>,
+        ));
+
+        // event-driven schedules
+        let mut on_resize = Schedule::new(OnResizeSchedule);
+        on_resize.add_systems((
+            camera::Camera::on_resize,
+            renderer::pathtrace::PathtracePass::on_resize,
+            renderer::final_pass::FinalPass::on_resize,
         ));
 
         Self {
-            init_render,
-            init_main,
-            init_event,
-            pre_update_render,
-            update_render,
-            post_update_render,
-            update_main,
-            post_update_main,
-            update_event,
+            on_init_event_setup,
+            on_init_render_setup,
+            on_init_app_setup,
+            on_redraw_pre_frame,
+            on_redraw_render,
+            on_redraw_post_frame,
+            on_redraw_event_update,
+            on_resize,
         }
-    }
-}
-
-impl ScheduleRunner {
-    pub fn startup(&mut self, world: &mut World) {
-        self.init_main.run(world);
-        self.init_render.run(world);
-        self.init_event.run(world);
-    }
-
-    pub fn update(&mut self, world: &mut World) {
-        self.update_main.run(world);
-        self.post_update_main.run(world);
-        self.update_event.run(world);
-
-        self.pre_update_render.run(world);
-        self.update_render.run(world);
-        self.post_update_render.run(world);
     }
 }

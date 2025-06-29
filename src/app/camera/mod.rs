@@ -6,7 +6,8 @@ use bevy_ecs::{
 use glam::{DVec2, Mat3, Mat4, Quat, Vec3};
 use winit::{dpi::PhysicalSize, keyboard::KeyCode};
 
-use crate::render::{SurfaceState, WindowResizeEvent};
+use crate::ecs::events::MouseMotion;
+use crate::render::SurfaceState;
 
 use super::{input::Input, time::Time};
 
@@ -177,13 +178,15 @@ impl Camera {
         mut camera: ResMut<Camera>,
         input: Res<Input>,
         time: Res<Time>,
-        render_state: Res<SurfaceState>,
-        mut resize_events: EventReader<WindowResizeEvent>,
+        mut mouse_motion_events: EventReader<MouseMotion>,
     ) {
         camera.update_position(&input, &time);
 
-        if resize_events.read().count() > 0 {
-            camera.reconfigure_aspect(render_state.get_effective_size());
-        }
+        let mouse_delta: DVec2 = mouse_motion_events.read().map(|e| **e).sum();
+        camera.update_rotation(mouse_delta, 0.1);
+    }
+
+    pub fn on_resize(mut camera: ResMut<Camera>, surface_state: Res<SurfaceState>) {
+        camera.reconfigure_aspect(surface_state.get_effective_size());
     }
 }

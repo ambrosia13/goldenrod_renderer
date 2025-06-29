@@ -1,4 +1,5 @@
 use bevy_ecs::{
+    change_detection::DetectChanges,
     resource::Resource,
     system::{Commands, Res, ResMut},
 };
@@ -73,15 +74,12 @@ impl ObjectBinding {
     pub fn update(
         surface_state: Res<SurfaceState>,
         mut object_binding: ResMut<ObjectBinding>,
-        mut objects: ResMut<Objects>,
+        objects: Res<Objects>,
     ) {
         // check if we need to update
-        if !objects.update {
+        if !objects.is_changed() {
             return;
         }
-
-        // Mark the object binding as updated
-        objects.update = false;
 
         let usage = wgpu::BufferUsages::STORAGE;
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use bevy_ecs::world::World;
+use bevy_ecs::{event::Events, world::World};
 use camera::Camera;
 use glam::DVec2;
 use input::Input;
@@ -14,12 +14,17 @@ use winit::{
 };
 
 use crate::{
-    ecs::{world::schedule::ScheduleRunner, Wrapper},
+    ecs::{
+        events::{KeyEvent, MenuResizeEvent, MouseInput, MouseMotion},
+        world::schedule::Schedules,
+        Wrapper,
+    },
     egui::EguiRenderState,
-    render::{FrameRecord, SurfaceState, WindowResizeEvent},
+    render::{FrameRecord, SurfaceState},
 };
 
 pub mod camera;
+pub mod control;
 pub mod fps;
 pub mod input;
 pub mod menu;
@@ -42,7 +47,7 @@ enum AppState {
     Init {
         window: Arc<Window>,
         world: World,
-        schedule_runner: ScheduleRunner,
+        schedules: Schedules,
     },
 }
 
@@ -63,7 +68,7 @@ impl AppState {
         );
 
         let mut world = World::new();
-        let mut schedule_runner = ScheduleRunner::default();
+        let mut schedules = Schedules::default();
 
         let surface_state = pollster::block_on(SurfaceState::new(window.clone()));
         let egui_render_state = EguiRenderState::new(
@@ -81,12 +86,14 @@ impl AppState {
         world.insert_resource(Time::new());
 
         // Run startup systems
-        schedule_runner.startup(&mut world);
+        schedules.on_init_event_setup.run(&mut world);
+        schedules.on_init_render_setup.run(&mut world);
+        schedules.on_init_app_setup.run(&mut world);
 
         Self::Init {
             window,
             world,
-            schedule_runner,
+            schedules,
         }
     }
 }
@@ -116,12 +123,7 @@ impl ApplicationHandler for App {
             delta: (delta_x, delta_y),
         } = event
         {
-            let mut input = world.resource_mut::<Input>();
-            input.set_mouse_delta(delta_x, delta_y);
-            let delta = DVec2::new(delta_x, delta_y);
-
-            let mut camera = world.resource_mut::<Camera>();
-            camera.update_rotation(delta, 0.1);
+            world.send_event(MouseMotion(DVec2::new(delta_x, delta_y)));
         }
     }
 
@@ -134,7 +136,7 @@ impl ApplicationHandler for App {
         let AppState::Init {
             window,
             world,
-            schedule_runner,
+            schedules,
         } = &mut self.state
         else {
             return;
@@ -152,12 +154,10 @@ impl ApplicationHandler for App {
         match event {
             // Input events
             WindowEvent::KeyboardInput { event, .. } => {
-                let mut input = world.resource_mut::<Input>();
-                input::handle_keyboard_input_event(&mut input, event);
+                world.send_event(KeyEvent(event));
             }
             WindowEvent::MouseInput { state, button, .. } => {
-                let mut input = world.resource_mut::<Input>();
-                input::handle_mouse_input_event(&mut input, state, button);
+                world.send_event(MouseInput { state, button });
             }
             WindowEvent::MouseWheel { delta: _, .. } => {}
 
@@ -167,12 +167,23 @@ impl ApplicationHandler for App {
                 let mut surface_state = world.resource_mut::<SurfaceState>();
                 surface_state.resize(size);
 
-                world.send_event(WindowResizeEvent);
+                schedules.on_resize.run(world);
             }
             WindowEvent::RedrawRequested => {
                 // We want another frame after this one
                 window.request_redraw();
 
+                // In the case of a menu resize, run the resize events
+                let mut resize_events = world.resource_mut::<Events<MenuResizeEvent>>();
+                if !resize_events.is_empty() {
+                    resize_events.clear();
+                    schedules.on_resize.run(world);
+                }
+
+                // Before starting the frame, run pre-frame systems
+                schedules.on_redraw_pre_frame.run(world);
+
+                // Initialize frame data
                 let surface_state = world.resource::<SurfaceState>();
                 let frame = match surface_state.begin_frame() {
                     Ok(r) => r,
@@ -203,11 +214,13 @@ impl ApplicationHandler for App {
                 let mut egui_render_state = world.resource_mut::<EguiRenderState>();
                 egui_render_state.begin_frame(window);
 
-                // Pass over ownership of the frame data to the world, to let all the systems freely use it
+                // Pass over ownership of the frame data to the world for use in systems
                 world.insert_resource(FrameRecord(frame));
-                schedule_runner.update(world);
 
-                // Now that all systems are done running, take frame data back out so we can use it to finish
+                // Run render-related systems
+                schedules.on_redraw_render.run(world);
+
+                // Now that all render systems are done running, take frame data back out so we can use it to finish
                 // drawing egui and then send all commands to the GPU
                 let mut frame = world.remove_resource::<FrameRecord>().unwrap();
 
@@ -227,11 +240,9 @@ impl ApplicationHandler for App {
                 let surface_state = world.resource_mut::<SurfaceState>();
                 surface_state.finish_frame(frame.0);
 
-                // Read the timestamps now that the encoder has been submitted
-                profiler::RenderProfiler::post_render(world);
-
-                // Update fps counter so we can get an accurate reading
-                fps::FpsCounter::update(world);
+                // Now that the frame is done, run post-frame systems
+                schedules.on_redraw_post_frame.run(world);
+                schedules.on_redraw_event_update.run(world);
             }
             _ => {}
         }

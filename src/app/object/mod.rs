@@ -1,37 +1,9 @@
-use bevy_ecs::event::Event;
 use bevy_ecs::resource::Resource;
-use bevy_ecs::{
-    event::EventReader,
-    system::{Commands, ResMut},
-};
+use bevy_ecs::system::Commands;
 use glam::Vec3;
 use gpu_bytes_derive::AsStd430;
 
 pub mod binding;
-
-#[derive(Event)]
-pub struct MaterialPushEvent(pub Material);
-
-#[derive(Event)]
-pub struct MaterialPopEvent;
-
-#[derive(Event)]
-pub struct SpherePushEvent(pub Sphere);
-
-#[derive(Event)]
-pub struct SpherePopEvent;
-
-#[derive(Event)]
-pub struct AabbPushEvent(pub Aabb);
-
-#[derive(Event)]
-pub struct AabbPopEvent;
-
-#[derive(Event)]
-pub struct TrianglePushEvent(pub Triangle);
-
-#[derive(Event)]
-pub struct TrianglePopEvent;
 
 #[derive(Resource)]
 pub struct Objects {
@@ -39,8 +11,6 @@ pub struct Objects {
     pub spheres: Vec<Sphere>,
     pub aabbs: Vec<Aabb>,
     pub triangles: Vec<Triangle>,
-
-    pub update: bool,
 }
 
 impl Objects {
@@ -55,67 +25,7 @@ impl Objects {
             spheres,
             aabbs,
             triangles,
-            update: false,
         });
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn update(
-        mut objects: ResMut<Objects>,
-        mut material_push_events: EventReader<MaterialPushEvent>,
-        mut material_pop_events: EventReader<MaterialPopEvent>,
-        mut sphere_push_events: EventReader<SpherePushEvent>,
-        mut sphere_pop_events: EventReader<SpherePopEvent>,
-        mut aabb_push_events: EventReader<AabbPushEvent>,
-        mut aabb_pop_events: EventReader<AabbPopEvent>,
-        mut triangle_push_events: EventReader<TrianglePushEvent>,
-        mut triangle_pop_events: EventReader<TrianglePopEvent>,
-    ) {
-        for MaterialPushEvent(material) in material_push_events.read() {
-            let mut material = *material;
-
-            // Gamma correct on cpu side
-            material.albedo = material.albedo.powf(2.2);
-            material.emission = material.emission.powf(2.2);
-
-            objects.materials.push(material);
-            objects.update = true;
-        }
-
-        for _ in material_pop_events.read() {
-            objects.materials.pop();
-            objects.update = true;
-        }
-
-        for SpherePushEvent(sphere) in sphere_push_events.read() {
-            objects.spheres.push(*sphere);
-            objects.update = true;
-        }
-
-        for _ in sphere_pop_events.read() {
-            objects.spheres.pop();
-            objects.update = true;
-        }
-
-        for AabbPushEvent(aabb) in aabb_push_events.read() {
-            objects.aabbs.push(*aabb);
-            objects.update = true;
-        }
-
-        for _ in aabb_pop_events.read() {
-            objects.aabbs.pop();
-            objects.update = true;
-        }
-
-        for TrianglePushEvent(triangle) in triangle_push_events.read() {
-            objects.triangles.push(*triangle);
-            objects.update = true;
-        }
-
-        for _ in triangle_pop_events.read() {
-            objects.triangles.pop();
-            objects.update = true;
-        }
     }
 }
 

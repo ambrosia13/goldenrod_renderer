@@ -1,12 +1,14 @@
 use std::collections::HashSet;
 
-use bevy_ecs::resource::Resource;
 use bevy_ecs::system::ResMut;
+use bevy_ecs::{event::EventReader, resource::Resource};
 use glam::DVec2;
 use winit::{
-    event::{ElementState, KeyEvent, MouseButton},
+    event::{ElementState, MouseButton},
     keyboard::KeyCode,
 };
+
+use crate::ecs::events::{KeyEvent, MouseInput};
 
 #[derive(Resource)]
 pub struct Input {
@@ -92,25 +94,35 @@ where
     }
 }
 
-pub fn handle_keyboard_input_event(input: &mut Input, event: KeyEvent) {
-    let key = match event.physical_key {
-        winit::keyboard::PhysicalKey::Code(key_code) => key_code,
-        winit::keyboard::PhysicalKey::Unidentified(native_key_code) => {
-            log::warn!("Unidentified physical key press: {:?}", native_key_code);
-            return;
-        }
-    };
+pub fn handle_keyboard_input_event(
+    mut input: ResMut<Input>,
+    mut key_events: EventReader<KeyEvent>,
+) {
+    for event in key_events.read() {
+        let key = match event.physical_key {
+            winit::keyboard::PhysicalKey::Code(key_code) => key_code,
+            winit::keyboard::PhysicalKey::Unidentified(native_key_code) => {
+                log::warn!("Unidentified physical key press: {:?}", native_key_code);
+                return;
+            }
+        };
 
-    match event.state {
-        winit::event::ElementState::Pressed => input.keys.press(key),
-        winit::event::ElementState::Released => input.keys.release(key),
+        match event.state {
+            winit::event::ElementState::Pressed => input.keys.press(key),
+            winit::event::ElementState::Released => input.keys.release(key),
+        }
     }
 }
 
-pub fn handle_mouse_input_event(input: &mut Input, state: ElementState, button: MouseButton) {
-    match state {
-        winit::event::ElementState::Pressed => input.mouse_buttons.press(button),
-        winit::event::ElementState::Released => input.mouse_buttons.release(button),
+pub fn handle_mouse_input_event(
+    mut input: ResMut<Input>,
+    mut mouse_input_events: EventReader<MouseInput>,
+) {
+    for event in mouse_input_events.read() {
+        match event.state {
+            winit::event::ElementState::Pressed => input.mouse_buttons.press(event.button),
+            winit::event::ElementState::Released => input.mouse_buttons.release(event.button),
+        }
     }
 }
 

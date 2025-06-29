@@ -91,6 +91,3 @@ impl DerefMut for FrameRecord {
         &mut self.0
     }
 }
-
-#[derive(Event)]
-pub struct WindowResizeEvent;

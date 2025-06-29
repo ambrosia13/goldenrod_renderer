@@ -1,18 +1,12 @@
 use bevy_ecs::resource::Resource;
-use bevy_ecs::{
-    event::EventReader,
-    system::{Commands, Res, ResMut},
-};
+use bevy_ecs::system::{Commands, Res, ResMut};
 use glam::UVec3;
 use wgputil::GpuHandle;
 
 use crate::app::object::binding::ObjectBinding;
 use crate::render::FrameRecord;
 use crate::util;
-use crate::{
-    app::camera::binding::ScreenBinding,
-    render::{SurfaceState, WindowResizeEvent},
-};
+use crate::{app::camera::binding::ScreenBinding, render::SurfaceState};
 
 use super::profiler::RenderProfiler;
 
@@ -300,43 +294,38 @@ impl PathtracePass {
 
     #[allow(clippy::too_many_arguments)]
     pub fn update(
-        mut path_tracer: ResMut<PathtracePass>,
-        surface_state: Res<SurfaceState>,
+        path_tracer: Res<PathtracePass>,
         screen_binding: Res<ScreenBinding>,
         object_binding: Res<ObjectBinding>,
         mut profiler: ResMut<RenderProfiler>,
 
         mut frame: ResMut<FrameRecord>,
-
-        mut resize_events: EventReader<WindowResizeEvent>,
     ) {
-        if resize_events.read().count() > 0 {
-            let (color_texture, previous_color_texture) = Self::create_textures(&surface_state);
-
-            let texture_bind_group = wgputil::binding::create_sequential_with_layout(
-                &surface_state.gpu.device,
-                "pathtrace_texture_binding",
-                &path_tracer.texture_bind_group_layout,
-                &[
-                    wgpu::BindingResource::TextureView(
-                        &color_texture.create_view(&Default::default()),
-                    ),
-                    wgpu::BindingResource::TextureView(
-                        &previous_color_texture.create_view(&Default::default()),
-                    ),
-                ],
-            );
-
-            path_tracer.color_texture = color_texture;
-            path_tracer.previous_color_texture = previous_color_texture;
-            path_tracer.texture_bind_group = texture_bind_group;
-        }
-
         path_tracer.draw(
             &mut frame.encoder,
             &mut profiler,
             &screen_binding,
             &object_binding,
         );
+    }
+
+    pub fn on_resize(mut path_tracer: ResMut<PathtracePass>, surface_state: Res<SurfaceState>) {
+        let (color_texture, previous_color_texture) = Self::create_textures(&surface_state);
+
+        let texture_bind_group = wgputil::binding::create_sequential_with_layout(
+            &surface_state.gpu.device,
+            "pathtrace_texture_binding",
+            &path_tracer.texture_bind_group_layout,
+            &[
+                wgpu::BindingResource::TextureView(&color_texture.create_view(&Default::default())),
+                wgpu::BindingResource::TextureView(
+                    &previous_color_texture.create_view(&Default::default()),
+                ),
+            ],
+        );
+
+        path_tracer.color_texture = color_texture;
+        path_tracer.previous_color_texture = previous_color_texture;
+        path_tracer.texture_bind_group = texture_bind_group;
     }
 }

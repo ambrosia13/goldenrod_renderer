@@ -1,15 +1,12 @@
 use bevy_ecs::resource::Resource;
-use bevy_ecs::{
-    event::EventReader,
-    system::{Commands, Res, ResMut},
-};
+use bevy_ecs::system::{Commands, Res, ResMut};
 use glam::Vec2;
 use gpu_bytes::AsStd140;
 use gpu_bytes_derive::AsStd140;
 use wgpu::util::DeviceExt;
 use wgputil::GpuHandle;
 
-use crate::render::{FrameRecord, SurfaceState, WindowResizeEvent};
+use crate::render::{FrameRecord, SurfaceState};
 use crate::util;
 
 use super::{pathtrace::PathtracePass, profiler::RenderProfiler};
@@ -363,28 +360,11 @@ impl FinalPass {
     }
 
     pub fn update(
-        mut final_pass: ResMut<FinalPass>,
-        pathtrace: Res<PathtracePass>,
+        final_pass: Res<FinalPass>,
         mut frame: ResMut<FrameRecord>,
         surface_state: Res<SurfaceState>,
         mut profiler: ResMut<RenderProfiler>,
-
-        mut resize_events: EventReader<WindowResizeEvent>,
     ) {
-        if resize_events.read().count() > 0 {
-            final_pass.texture_bind_group = wgputil::binding::create_sequential_with_layout(
-                &surface_state.gpu.device,
-                "final_texture_binding",
-                &final_pass.texture_bind_group_layout,
-                &[
-                    wgpu::BindingResource::TextureView(
-                        &pathtrace.color_texture.create_view(&Default::default()),
-                    ),
-                    wgpu::BindingResource::Sampler(&final_pass.sampler),
-                ],
-            );
-        }
-
         let data = FinalUniform::from_render_state(&surface_state);
         wgputil::buffer::write_slice(
             &surface_state.gpu.queue,
@@ -394,5 +374,23 @@ impl FinalPass {
         );
 
         final_pass.draw(&mut frame, &mut profiler);
+    }
+
+    pub fn on_resize(
+        mut final_pass: ResMut<FinalPass>,
+        surface_state: Res<SurfaceState>,
+        pathtrace: Res<PathtracePass>,
+    ) {
+        final_pass.texture_bind_group = wgputil::binding::create_sequential_with_layout(
+            &surface_state.gpu.device,
+            "final_texture_binding",
+            &final_pass.texture_bind_group_layout,
+            &[
+                wgpu::BindingResource::TextureView(
+                    &pathtrace.color_texture.create_view(&Default::default()),
+                ),
+                wgpu::BindingResource::Sampler(&final_pass.sampler),
+            ],
+        );
     }
 }
