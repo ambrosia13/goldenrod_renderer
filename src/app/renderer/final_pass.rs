@@ -246,10 +246,10 @@ impl FinalPass {
         let mut fragment_shader_source =
             wgputil::shader::ShaderSource::load_spirv(util::shader_path("final.slang"));
 
-        let (vertex_shader, error) =
+        let (vertex_shader, _error) =
             wgputil::shader::create_or_fallback(device, &mut vertex_shader_source);
 
-        let (fragment_shader, error) =
+        let (fragment_shader, _error) =
             wgputil::shader::create_or_fallback(device, &mut fragment_shader_source);
 
         (

@@ -35,9 +35,11 @@ public struct Spectrum {
         float3 xyz = lerp(this.wavelengthToXyzLut.Load(icoord).xyz, this.wavelengthToXyzLut.Load(icoord + 1).xyz, fcoord);
         float3 color = xyzToRgb(xyz);
 
-        float luminousEfficacy = 683.0;
+        // https://www.strollswithmydog.com/converting-radiometric-to-photometric-units/
+        float luminousEfficacy = 683.002;
         float pdf = 1.0 / (WAVELENGTH_RANGE_END - WAVELENGTH_RANGE_START);
 
+        // Returns the color as a luminance value
         return color * radiance * luminousEfficacy / pdf;
     }
 
