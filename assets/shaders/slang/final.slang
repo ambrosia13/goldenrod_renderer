@@ -85,6 +85,10 @@ float4 fragment(
     uv -= display.effectiveStart;
     uv /= (display.effectiveEnd) - (display.effectiveStart);
 
+    if (any(clamp(uv, float2(0.0), float2(1.0)) != uv)) {
+        discard;
+    }
+
     float4 sample = source.texture.Sample(source.sampler, uv);
     sample.rgb = pow(sample.rgb, float3(1.0 / 2.2));
     //sample.rgb = frx_toneMap(sample.rgb);
