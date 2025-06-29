@@ -85,6 +85,7 @@ impl Default for Schedules {
         on_init_render_setup.add_systems(
             (
                 (
+                    renderer::RendererViewport::init,
                     object::binding::ObjectBinding::init,
                     camera::binding::ScreenBinding::init,
                     renderer::profiler::RenderProfiler::init,

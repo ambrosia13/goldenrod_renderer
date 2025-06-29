@@ -2,7 +2,7 @@ use bevy_ecs::resource::Resource;
 use bevy_ecs::{system::Commands, world::World};
 use wgputil::GpuHandle;
 
-use crate::render::SurfaceState;
+use crate::app::renderer::SurfaceState;
 
 #[derive(Resource)]
 pub struct RenderProfiler {

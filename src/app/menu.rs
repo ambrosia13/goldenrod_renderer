@@ -7,13 +7,13 @@ use bevy_ecs::{
     world::World,
 };
 use egui::{DragValue, Ui};
-use glam::Vec3;
+use glam::{UVec2, Vec3};
 use winit::window::Window;
 
 use crate::{
-    ecs::{events::MenuResizeEvent, Wrapper},
+    app::renderer::RendererViewport,
+    ecs::{events::MenuResizeEvent, ResourceWrapper},
     egui::EguiRenderState,
-    render::SurfaceState,
 };
 
 use super::{
@@ -51,9 +51,9 @@ impl Menu {
     #[allow(clippy::too_many_arguments)]
     pub fn update(
         mut menu: ResMut<Menu>,
-        mut surface_state: ResMut<SurfaceState>,
+        mut renderer_viewport: ResMut<RendererViewport>,
         egui_render_state: Res<EguiRenderState>,
-        window: Res<Wrapper<Arc<Window>>>,
+        window: Res<ResourceWrapper<Arc<Window>>>,
         fps_counter: Res<FpsCounter>,
         camera: Res<Camera>,
         mut objects: ResMut<Objects>,
@@ -81,21 +81,21 @@ impl Menu {
         let window_size = window.inner_size();
 
         // Calculate the bounds of the central panel, so our renderer knows how big the texture we draw to should be
-        let effective_viewport_start = (left_panel_size as u32, 0);
-        let effective_viewport_end = (
+        let renderer_viewport_start = UVec2::new(left_panel_size as u32, 0);
+        let renderer_viewport_end = UVec2::new(
             window_size.width - right_panel_size as u32,
             window_size.height,
         );
 
         // if it's changed, send a resize event
-        if surface_state.effective_viewport_start != effective_viewport_start
-            || surface_state.effective_viewport_end != effective_viewport_end
+        if renderer_viewport.start != renderer_viewport_start
+            || renderer_viewport.end != renderer_viewport_end
         {
             resize_events.write(MenuResizeEvent);
         }
 
-        surface_state.effective_viewport_start = effective_viewport_start;
-        surface_state.effective_viewport_end = effective_viewport_end;
+        renderer_viewport.start = renderer_viewport_start;
+        renderer_viewport.end = renderer_viewport_end;
     }
 
     // We need to take objects as a ResMut<> to preserve change detection

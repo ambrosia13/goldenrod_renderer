@@ -7,7 +7,7 @@ use gpu_bytes::AsStd140;
 use gpu_bytes_derive::{AsStd140, AsStd430};
 use wgpu::util::DeviceExt;
 
-use crate::render::SurfaceState;
+use crate::app::renderer::{RendererViewport, SurfaceState};
 
 use super::Camera;
 
@@ -72,6 +72,7 @@ impl ScreenBinding {
 
     pub fn update(
         surface_state: Res<SurfaceState>,
+        renderer_viewport: Res<RendererViewport>,
         mut screen_binding: ResMut<ScreenBinding>,
         camera: Res<Camera>,
     ) {
@@ -83,7 +84,7 @@ impl ScreenBinding {
             0,
         );
 
-        screen_binding.view_uniform.update_from(&surface_state);
+        screen_binding.view_uniform.update_from(&renderer_viewport);
         wgputil::buffer::write_slice(
             &surface_state.gpu.queue,
             &screen_binding.view_buffer,
@@ -151,9 +152,9 @@ pub struct ViewUniform {
 }
 
 impl ViewUniform {
-    fn update_from(&mut self, render_state: &SurfaceState) {
-        self.width = render_state.get_effective_width();
-        self.height = render_state.get_effective_height();
+    fn update_from(&mut self, renderer_viewport: &RendererViewport) {
+        self.width = renderer_viewport.get_width();
+        self.height = renderer_viewport.get_height();
         self.aspect_ratio = self.width as f32 / self.height as f32;
         self.frame_count = self.frame_count.wrapping_add(1);
     }

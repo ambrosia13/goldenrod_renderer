@@ -3,10 +3,10 @@ use bevy_ecs::system::{Commands, Res, ResMut};
 use glam::UVec3;
 use wgputil::GpuHandle;
 
+use crate::app::camera::binding::ScreenBinding;
 use crate::app::object::binding::ObjectBinding;
-use crate::render::FrameRecord;
+use crate::app::renderer::{FrameRecord, RendererViewport, SurfaceState};
 use crate::util;
-use crate::{app::camera::binding::ScreenBinding, render::SurfaceState};
 
 use super::profiler::RenderProfiler;
 
@@ -31,13 +31,15 @@ pub struct PathtracePass {
 impl PathtracePass {
     fn new(
         surface_state: &SurfaceState,
+        renderer_viewport: &RendererViewport,
         screen_binding: &ScreenBinding,
         object_binding: &ObjectBinding,
         profiler: &mut RenderProfiler,
     ) -> Self {
         let gpu_handle = surface_state.gpu.clone();
 
-        let (color_texture, previous_color_texture) = Self::create_textures(surface_state);
+        let (color_texture, previous_color_texture) =
+            Self::create_textures(surface_state, renderer_viewport);
 
         let (texture_bind_group_layout, texture_bind_group) = Self::create_texture_binding(
             gpu_handle.clone(),
@@ -185,7 +187,10 @@ impl PathtracePass {
         )
     }
 
-    fn create_textures(surface_state: &SurfaceState) -> (wgpu::Texture, wgpu::Texture) {
+    fn create_textures(
+        surface_state: &SurfaceState,
+        renderer_viewport: &RendererViewport,
+    ) -> (wgpu::Texture, wgpu::Texture) {
         let texture_format = wgpu::TextureFormat::Rgba32Float;
 
         let color_texture = surface_state
@@ -194,8 +199,8 @@ impl PathtracePass {
             .create_texture(&wgpu::TextureDescriptor {
                 label: Some("pathtrace_color_texture"),
                 size: wgpu::Extent3d {
-                    width: surface_state.get_effective_width(),
-                    height: surface_state.get_effective_height(),
+                    width: renderer_viewport.get_width(),
+                    height: renderer_viewport.get_height(),
                     depth_or_array_layers: 1,
                 },
                 mip_level_count: 1,
@@ -277,13 +282,15 @@ impl PathtracePass {
 
     pub fn init(
         mut commands: Commands,
-        render_state: Res<SurfaceState>,
+        surface_state: Res<SurfaceState>,
+        renderer_viewport: Res<RendererViewport>,
         screen_binding: Res<ScreenBinding>,
         object_binding: Res<ObjectBinding>,
         mut profiler: ResMut<RenderProfiler>,
     ) {
         let path_tracer = PathtracePass::new(
-            &render_state,
+            &surface_state,
+            &renderer_viewport,
             &screen_binding,
             &object_binding,
             &mut profiler,
@@ -309,8 +316,13 @@ impl PathtracePass {
         );
     }
 
-    pub fn on_resize(mut path_tracer: ResMut<PathtracePass>, surface_state: Res<SurfaceState>) {
-        let (color_texture, previous_color_texture) = Self::create_textures(&surface_state);
+    pub fn on_resize(
+        mut path_tracer: ResMut<PathtracePass>,
+        surface_state: Res<SurfaceState>,
+        renderer_viewport: Res<RendererViewport>,
+    ) {
+        let (color_texture, previous_color_texture) =
+            Self::create_textures(&surface_state, &renderer_viewport);
 
         let texture_bind_group = wgputil::binding::create_sequential_with_layout(
             &surface_state.gpu.device,

@@ -6,7 +6,7 @@ use gpu_bytes_derive::AsStd140;
 use wgpu::util::DeviceExt;
 use wgputil::GpuHandle;
 
-use crate::render::{FrameRecord, SurfaceState};
+use crate::app::renderer::{FrameRecord, RendererViewport, SurfaceState};
 use crate::util;
 
 use super::{pathtrace::PathtracePass, profiler::RenderProfiler};
@@ -18,19 +18,18 @@ struct FinalUniform {
 }
 
 impl FinalUniform {
-    pub fn from_render_state(surface_state: &SurfaceState) -> Self {
+    pub fn from_renderer_viewport(
+        surface_state: &SurfaceState,
+        renderer_viewport: &RendererViewport,
+    ) -> Self {
         let start = Vec2::new(
-            surface_state.effective_viewport_start.0 as f32
-                / surface_state.viewport_size.width as f32,
-            surface_state.effective_viewport_start.1 as f32
-                / surface_state.viewport_size.height as f32,
+            renderer_viewport.start.x as f32 / surface_state.viewport_size.width as f32,
+            renderer_viewport.start.y as f32 / surface_state.viewport_size.height as f32,
         );
 
         let end = Vec2::new(
-            surface_state.effective_viewport_end.0 as f32
-                / surface_state.viewport_size.width as f32,
-            surface_state.effective_viewport_end.1 as f32
-                / surface_state.viewport_size.height as f32,
+            renderer_viewport.end.x as f32 / surface_state.viewport_size.width as f32,
+            renderer_viewport.end.y as f32 / surface_state.viewport_size.height as f32,
         );
 
         Self {
@@ -66,6 +65,7 @@ pub struct FinalPass {
 impl FinalPass {
     fn new(
         surface_state: &SurfaceState,
+        renderer_viewport: &RendererViewport,
         input_texture: &wgpu::Texture,
         profiler: &mut RenderProfiler,
     ) -> Self {
@@ -80,7 +80,8 @@ impl FinalPass {
         let (texture_bind_group_layout, texture_bind_group) =
             Self::create_texture_binding(&surface_state.gpu.device, &sampler, input_texture);
 
-        let data = FinalUniform::from_render_state(surface_state).as_std140();
+        let data =
+            FinalUniform::from_renderer_viewport(surface_state, renderer_viewport).as_std140();
         let uniform_buffer =
             surface_state
                 .gpu
@@ -351,11 +352,17 @@ impl FinalPass {
 
     pub fn init(
         mut commands: Commands,
-        render_state: Res<SurfaceState>,
+        surface_state: Res<SurfaceState>,
+        renderer_viewport: Res<RendererViewport>,
         pathtrace: Res<PathtracePass>,
         mut profiler: ResMut<RenderProfiler>,
     ) {
-        let display = Self::new(&render_state, &pathtrace.color_texture, &mut profiler);
+        let display = Self::new(
+            &surface_state,
+            &renderer_viewport,
+            &pathtrace.color_texture,
+            &mut profiler,
+        );
         commands.insert_resource(display);
     }
 
@@ -363,9 +370,10 @@ impl FinalPass {
         final_pass: Res<FinalPass>,
         mut frame: ResMut<FrameRecord>,
         surface_state: Res<SurfaceState>,
+        renderer_viewport: Res<RendererViewport>,
         mut profiler: ResMut<RenderProfiler>,
     ) {
-        let data = FinalUniform::from_render_state(&surface_state);
+        let data = FinalUniform::from_renderer_viewport(&surface_state, &renderer_viewport);
         wgputil::buffer::write_slice(
             &surface_state.gpu.queue,
             &final_pass.uniform_buffer,

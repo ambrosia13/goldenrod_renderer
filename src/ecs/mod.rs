@@ -7,32 +7,34 @@ pub mod events;
 pub mod schedule;
 
 #[derive(Resource)]
-pub struct Wrapper<T> {
-    inner: T,
-}
+pub struct ResourceWrapper<T>(T);
 
-impl<T> Wrapper<T> {
+impl<T> ResourceWrapper<T> {
     pub fn new(value: T) -> Self {
-        Self { inner: value }
+        Self(value)
+    }
+
+    pub fn into_inner(self) -> T {
+        self.0
     }
 }
 
-impl<T> From<T> for Wrapper<T> {
+impl<T> From<T> for ResourceWrapper<T> {
     fn from(value: T) -> Self {
         Self::new(value)
     }
 }
 
-impl<T> Deref for Wrapper<T> {
+impl<T> Deref for ResourceWrapper<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.inner
+        &self.0
     }
 }
 
-impl<T> DerefMut for Wrapper<T> {
+impl<T> DerefMut for ResourceWrapper<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
+        &mut self.0
     }
 }

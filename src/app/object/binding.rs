@@ -6,9 +6,9 @@ use bevy_ecs::{
 use gpu_bytes::AsStd430;
 use wgpu::util::DeviceExt;
 
-use crate::{
-    app::object::{Aabb, Material, Sphere, Triangle},
-    render::SurfaceState,
+use crate::app::{
+    object::{Aabb, Material, Sphere, Triangle},
+    renderer::SurfaceState,
 };
 
 use super::Objects;

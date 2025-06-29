@@ -6,8 +6,8 @@ use bevy_ecs::{
 use glam::{DVec2, Mat3, Mat4, Quat, Vec3};
 use winit::{dpi::PhysicalSize, keyboard::KeyCode};
 
+use crate::app::renderer::RendererViewport;
 use crate::ecs::events::MouseMotion;
-use crate::render::SurfaceState;
 
 use super::{input::Input, time::Time};
 
@@ -162,12 +162,12 @@ impl Camera {
         (rotation, yaw, pitch)
     }
 
-    pub fn init(mut commands: Commands, render_state: Res<SurfaceState>) {
+    pub fn init(mut commands: Commands, renderer_viewport: Res<RendererViewport>) {
         commands.insert_resource(Camera::new(
             Vec3::ZERO,
             Vec3::Z,
             45.0,
-            render_state.get_effective_size(),
+            renderer_viewport.get_size(),
             1.0,
             100.0,
             10.0,
@@ -186,7 +186,7 @@ impl Camera {
         camera.update_rotation(mouse_delta, 0.1);
     }
 
-    pub fn on_resize(mut camera: ResMut<Camera>, surface_state: Res<SurfaceState>) {
-        camera.reconfigure_aspect(surface_state.get_effective_size());
+    pub fn on_resize(mut camera: ResMut<Camera>, renderer_viewport: Res<RendererViewport>) {
+        camera.reconfigure_aspect(renderer_viewport.get_size());
     }
 }

@@ -12,13 +12,14 @@ use winit::{
 };
 
 use crate::{
+    app::renderer::{FrameRecord, SurfaceState},
     ecs::{
         events::{KeyEvent, MenuResizeEvent, MouseInput, MouseMotion},
         schedule::Schedules,
-        Wrapper,
+        ResourceWrapper,
     },
     egui::EguiRenderState,
-    render::{FrameRecord, SurfaceState},
+    wgpu_limits, WGPU_FEATURES,
 };
 
 pub mod camera;
@@ -68,7 +69,12 @@ impl AppState {
         let mut world = World::new();
         let mut schedules = Schedules::default();
 
-        let surface_state = pollster::block_on(SurfaceState::new(window.clone()));
+        let surface_state = ResourceWrapper::new(pollster::block_on(wgputil::SurfaceState::new(
+            window.clone(),
+            WGPU_FEATURES,
+            wgpu_limits(),
+        )));
+
         let egui_render_state = EguiRenderState::new(
             &surface_state.gpu.device,
             surface_state.config.format,
@@ -77,7 +83,7 @@ impl AppState {
             &window,
         );
 
-        world.insert_resource(Wrapper::new(window.clone()));
+        world.insert_resource(ResourceWrapper::new(window.clone()));
         world.insert_resource(surface_state);
         world.insert_resource(egui_render_state);
         world.insert_resource(Input::new());
@@ -213,7 +219,7 @@ impl ApplicationHandler for App {
                 egui_render_state.begin_frame(window);
 
                 // Pass over ownership of the frame data to the world for use in systems
-                world.insert_resource(FrameRecord(frame));
+                world.insert_resource(ResourceWrapper::new(frame));
 
                 // Run render-related systems
                 schedules.on_redraw_render.run(world);
@@ -240,7 +246,7 @@ impl ApplicationHandler for App {
                 window.pre_present_notify();
 
                 let surface_state = world.resource_mut::<SurfaceState>();
-                surface_state.finish_frame(frame.0);
+                surface_state.finish_frame(frame.into_inner());
 
                 // Now that the frame is done, run post-frame systems
                 schedules.on_redraw_post_frame.run(world);
