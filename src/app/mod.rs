@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
 use bevy_ecs::{event::Events, world::World};
-use camera::Camera;
 use glam::DVec2;
 use input::Input;
-use renderer::profiler;
 use time::Time;
 use winit::{
     application::ApplicationHandler,
@@ -236,6 +234,10 @@ impl ApplicationHandler for App {
                         pixels_per_point: window.scale_factor() as f32,
                     },
                 );
+
+                // Notify the window that we're about to present, because apparently winit recommends that
+                // https://docs.rs/winit/0.30.11/winit/window/struct.Window.html#method.pre_present_notify
+                window.pre_present_notify();
 
                 let surface_state = world.resource_mut::<SurfaceState>();
                 surface_state.finish_frame(frame.0);
