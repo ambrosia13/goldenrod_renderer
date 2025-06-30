@@ -26,6 +26,7 @@ pub mod camera;
 pub mod control;
 pub mod fps;
 pub mod input;
+pub mod lookup;
 pub mod menu;
 pub mod object;
 pub mod renderer;

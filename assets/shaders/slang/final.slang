@@ -76,8 +76,8 @@ float3 frx_toneMap(float3 color) {
 [[shader("fragment")]]
 float4 fragment(
     VertexOutput input,
-    uniform ParameterBlock<Source> source,
     uniform ParameterBlock<CameraResponse> cameraResponse,
+    uniform ParameterBlock<Source> source,
     uniform ParameterBlock<Display> display,
 ): SV_Target {
     float2 uv = input.uv;

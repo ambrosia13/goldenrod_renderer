@@ -2,7 +2,7 @@ use bevy_ecs::schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel};
 
 use crate::{
     app::{
-        camera, control, fps, input, menu, object,
+        camera, control, fps, input, lookup, menu, object,
         renderer::{self, profiler},
         time,
     },
@@ -86,6 +86,8 @@ impl Default for Schedules {
             (
                 (
                     renderer::RendererViewport::init,
+                    lookup::SpectrumBinding::init,
+                    lookup::CameraResponseBinding::init,
                     object::binding::ObjectBinding::init,
                     camera::binding::ScreenBinding::init,
                     renderer::profiler::RenderProfiler::init,

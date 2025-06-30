@@ -6,6 +6,7 @@ use gpu_bytes_derive::AsStd140;
 use wgpu::util::DeviceExt;
 use wgputil::GpuHandle;
 
+use crate::app::lookup::CameraResponseBinding;
 use crate::app::renderer::{FrameRecord, RendererViewport, SurfaceState};
 use crate::util;
 
@@ -48,7 +49,6 @@ pub struct FinalPass {
     texture_bind_group_layout: wgpu::BindGroupLayout,
 
     texture_bind_group: wgpu::BindGroup,
-    camera_response_bind_group: wgpu::BindGroup,
     uniform_bind_group: wgpu::BindGroup,
 
     vertex_shader_source: wgputil::shader::ShaderSource,
@@ -66,6 +66,7 @@ impl FinalPass {
     fn new(
         surface_state: &SurfaceState,
         renderer_viewport: &RendererViewport,
+        camera_response_binding: &CameraResponseBinding,
         input_texture: &wgpu::Texture,
         profiler: &mut RenderProfiler,
     ) -> Self {
@@ -99,9 +100,6 @@ impl FinalPass {
                 &[wgputil::binding::bind_buffer_uniform(&uniform_buffer)],
             );
 
-        let (camera_response_bind_group_layout, camera_response_bind_group) =
-            Self::create_lut_binding(surface_state.gpu.clone());
-
         let pipeline_layout =
             surface_state
                 .gpu
@@ -109,8 +107,8 @@ impl FinalPass {
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("final_pipeline_layout"),
                     bind_group_layouts: &[
+                        &camera_response_binding.bind_group_layout,
                         &texture_bind_group_layout,
-                        &camera_response_bind_group_layout,
                         &uniform_bind_group_layout,
                     ],
                     push_constant_ranges: &[],
@@ -135,7 +133,6 @@ impl FinalPass {
             texture_bind_group,
             uniform_buffer,
             uniform_bind_group,
-            camera_response_bind_group,
             time_query_index,
             vertex_shader_source,
             fragment_shader_source,
@@ -143,94 +140,6 @@ impl FinalPass {
             fragment_shader,
             pipeline_layout,
         }
-    }
-
-    fn create_lut_binding(gpu_handle: GpuHandle) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
-        let parent_dir = std::env::current_dir().unwrap();
-
-        fn create_descriptor(name: &str) -> wgpu::TextureDescriptor<'_> {
-            wgpu::TextureDescriptor {
-                label: Some(name),
-                size: wgpu::Extent3d {
-                    width: 1024,
-                    height: 1,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D1,
-                format: wgpu::TextureFormat::R32Float,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                view_formats: &[],
-            }
-        }
-
-        let camera_response_red = wgputil::texture::load_raw(
-            &gpu_handle.device,
-            &gpu_handle.queue,
-            parent_dir.join("assets/textures/camera_response/Kodachrome-64CDRed.bin"),
-            &create_descriptor("camera_response_red"),
-        )
-        .expect("Failed to read camera response texture");
-        let camera_response_red_view =
-            camera_response_red.create_view(&wgpu::TextureViewDescriptor::default());
-
-        let camera_response_green = wgputil::texture::load_raw(
-            &gpu_handle.device,
-            &gpu_handle.queue,
-            parent_dir.join("assets/textures/camera_response/Kodachrome-64CDGreen.bin"),
-            &create_descriptor("camera_response_green"),
-        )
-        .expect("Failed to read camera response texture");
-        let camera_response_green_view =
-            camera_response_green.create_view(&wgpu::TextureViewDescriptor::default());
-
-        let camera_response_blue = wgputil::texture::load_raw(
-            &gpu_handle.device,
-            &gpu_handle.queue,
-            parent_dir.join("assets/textures/camera_response/Kodachrome-64CDBlue.bin"),
-            &create_descriptor("camera_response_blue"),
-        )
-        .expect("Failed to read camera response texture");
-        let camera_response_blue_view =
-            camera_response_blue.create_view(&wgpu::TextureViewDescriptor::default());
-
-        let camera_response_sampler = gpu_handle.device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("camera_response_sampler"),
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            ..Default::default()
-        });
-
-        wgputil::binding::create_sequential_linked(
-            &gpu_handle.device,
-            "camera_response_binding",
-            &[
-                wgputil::binding::bind_texture(
-                    &camera_response_red_view,
-                    wgputil::texture::sample_type(&gpu_handle.device, &camera_response_red)
-                        .unwrap(),
-                    wgpu::TextureViewDimension::D1,
-                ),
-                wgputil::binding::bind_texture(
-                    &camera_response_green_view,
-                    wgputil::texture::sample_type(&gpu_handle.device, &camera_response_green)
-                        .unwrap(),
-                    wgpu::TextureViewDimension::D1,
-                ),
-                wgputil::binding::bind_texture(
-                    &camera_response_blue_view,
-                    wgputil::texture::sample_type(&gpu_handle.device, &camera_response_blue)
-                        .unwrap(),
-                    wgpu::TextureViewDimension::D1,
-                ),
-                wgputil::binding::BindingEntry {
-                    binding_type: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                    resource: wgpu::BindingResource::Sampler(&camera_response_sampler),
-                },
-            ],
-        )
     }
 
     fn create_shaders(
@@ -316,7 +225,12 @@ impl FinalPass {
         )
     }
 
-    fn draw(&self, frame: &mut FrameRecord, profiler: &mut RenderProfiler) {
+    fn draw(
+        &self,
+        frame: &mut FrameRecord,
+        profiler: &mut RenderProfiler,
+        camera_response_binding: &CameraResponseBinding,
+    ) {
         let (_, time_query) = &mut profiler.time_queries[self.time_query_index];
 
         let view = frame
@@ -341,8 +255,8 @@ impl FinalPass {
                 occlusion_query_set: None,
             });
 
-        render_pass.set_bind_group(0, &self.texture_bind_group, &[]);
-        render_pass.set_bind_group(1, &self.camera_response_bind_group, &[]);
+        render_pass.set_bind_group(0, &camera_response_binding.bind_group, &[]);
+        render_pass.set_bind_group(1, &self.texture_bind_group, &[]);
         render_pass.set_bind_group(2, &self.uniform_bind_group, &[]);
         render_pass.set_pipeline(&self.pipeline);
 
@@ -354,12 +268,14 @@ impl FinalPass {
         mut commands: Commands,
         surface_state: Res<SurfaceState>,
         renderer_viewport: Res<RendererViewport>,
+        camera_response_binding: Res<CameraResponseBinding>,
         pathtrace: Res<PathtracePass>,
         mut profiler: ResMut<RenderProfiler>,
     ) {
         let display = Self::new(
             &surface_state,
             &renderer_viewport,
+            &camera_response_binding,
             &pathtrace.color_texture,
             &mut profiler,
         );
@@ -372,6 +288,7 @@ impl FinalPass {
         surface_state: Res<SurfaceState>,
         renderer_viewport: Res<RendererViewport>,
         mut profiler: ResMut<RenderProfiler>,
+        camera_response_binding: Res<CameraResponseBinding>,
     ) {
         let data = FinalUniform::from_renderer_viewport(&surface_state, &renderer_viewport);
         wgputil::buffer::write_slice(
@@ -381,7 +298,7 @@ impl FinalPass {
             0,
         );
 
-        final_pass.draw(&mut frame, &mut profiler);
+        final_pass.draw(&mut frame, &mut profiler, &camera_response_binding);
     }
 
     pub fn on_resize(

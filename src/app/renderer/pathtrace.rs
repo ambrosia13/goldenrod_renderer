@@ -4,6 +4,7 @@ use glam::UVec3;
 use wgputil::GpuHandle;
 
 use crate::app::camera::binding::ScreenBinding;
+use crate::app::lookup::SpectrumBinding;
 use crate::app::object::binding::ObjectBinding;
 use crate::app::renderer::{FrameRecord, RendererViewport, SurfaceState};
 use crate::util;
@@ -18,8 +19,6 @@ pub struct PathtracePass {
     texture_bind_group_layout: wgpu::BindGroupLayout,
     texture_bind_group: wgpu::BindGroup,
 
-    lut_bind_group: wgpu::BindGroup,
-
     shader_source: wgputil::shader::ShaderSource,
     shader: wgpu::ShaderModule,
     pipeline_layout: wgpu::PipelineLayout,
@@ -32,6 +31,7 @@ impl PathtracePass {
     fn new(
         surface_state: &SurfaceState,
         renderer_viewport: &RendererViewport,
+        spectrum_binding: &SpectrumBinding,
         screen_binding: &ScreenBinding,
         object_binding: &ObjectBinding,
         profiler: &mut RenderProfiler,
@@ -47,8 +47,6 @@ impl PathtracePass {
             &previous_color_texture,
         );
 
-        let (lut_bind_group_layout, lut_bind_group) = Self::create_lut_binding(gpu_handle.clone());
-
         let pipeline_layout =
             gpu_handle
                 .device
@@ -57,8 +55,8 @@ impl PathtracePass {
                     bind_group_layouts: &[
                         &screen_binding.bind_group_layout,
                         &object_binding.bind_group_layout,
+                        &spectrum_binding.bind_group_layout,
                         &texture_bind_group_layout,
-                        &lut_bind_group_layout,
                     ],
                     push_constant_ranges: &[],
                 });
@@ -73,7 +71,6 @@ impl PathtracePass {
             previous_color_texture,
             texture_bind_group_layout,
             texture_bind_group,
-            lut_bind_group,
             shader_source,
             shader,
             pipeline_layout,
@@ -88,6 +85,7 @@ impl PathtracePass {
         profiler: &mut RenderProfiler,
         screen_binding: &ScreenBinding,
         object_binding: &ObjectBinding,
+        spectrum_binding: &SpectrumBinding,
     ) {
         let (_, time_query) = &mut profiler.time_queries[self.time_query_index];
 
@@ -105,8 +103,8 @@ impl PathtracePass {
 
         compute_pass.set_bind_group(0, &screen_binding.bind_group, &[]);
         compute_pass.set_bind_group(1, &object_binding.bind_group, &[]);
-        compute_pass.set_bind_group(2, &self.texture_bind_group, &[]);
-        compute_pass.set_bind_group(3, &self.lut_bind_group, &[]);
+        compute_pass.set_bind_group(2, &spectrum_binding.bind_group, &[]);
+        compute_pass.set_bind_group(3, &self.texture_bind_group, &[]);
 
         compute_pass.set_pipeline(&self.pipeline);
 
@@ -120,71 +118,6 @@ impl PathtracePass {
 
         compute_pass.dispatch_workgroups(workgroups.x, workgroups.y, workgroups.z);
         drop(compute_pass);
-    }
-
-    fn create_lut_binding(gpu_handle: GpuHandle) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
-        let parent_path = std::env::current_dir().unwrap();
-
-        let wavelength_to_xyz_texture = wgputil::texture::load_raw(
-            &gpu_handle.device,
-            &gpu_handle.queue,
-            parent_path.join("assets/textures/wavelength_to_xyz.bin"),
-            &wgpu::TextureDescriptor {
-                label: Some("wavelength_to_xyz_texture"),
-                size: wgpu::Extent3d {
-                    width: 471,
-                    height: 1,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D1,
-                format: wgpu::TextureFormat::Rgba32Float,
-                usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
-                view_formats: &[],
-            },
-        )
-        .unwrap();
-
-        let rgb_to_spectral_intensity_texture = wgputil::texture::load_raw(
-            &gpu_handle.device,
-            &gpu_handle.queue,
-            parent_path.join("assets/textures/rgb_to_spectral_intensity.bin"),
-            &wgpu::TextureDescriptor {
-                label: Some("rgb_to_spectral_intensity_texture"),
-                size: wgpu::Extent3d {
-                    width: 81,
-                    height: 1,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D1,
-                format: wgpu::TextureFormat::Rgba32Float,
-                usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
-                view_formats: &[],
-            },
-        )
-        .unwrap();
-
-        wgputil::binding::create_sequential_linked(
-            &gpu_handle.device,
-            "pathtrace_lut_binding",
-            &[
-                wgputil::binding::bind_storage_texture(
-                    &wavelength_to_xyz_texture.create_view(&Default::default()),
-                    wavelength_to_xyz_texture.format(),
-                    wgpu::TextureViewDimension::D1,
-                    wgpu::StorageTextureAccess::ReadWrite,
-                ),
-                wgputil::binding::bind_storage_texture(
-                    &rgb_to_spectral_intensity_texture.create_view(&Default::default()),
-                    rgb_to_spectral_intensity_texture.format(),
-                    wgpu::TextureViewDimension::D1,
-                    wgpu::StorageTextureAccess::ReadWrite,
-                ),
-            ],
-        )
     }
 
     fn create_textures(
@@ -286,11 +219,13 @@ impl PathtracePass {
         renderer_viewport: Res<RendererViewport>,
         screen_binding: Res<ScreenBinding>,
         object_binding: Res<ObjectBinding>,
+        spectrum_binding: Res<SpectrumBinding>,
         mut profiler: ResMut<RenderProfiler>,
     ) {
         let path_tracer = PathtracePass::new(
             &surface_state,
             &renderer_viewport,
+            &spectrum_binding,
             &screen_binding,
             &object_binding,
             &mut profiler,
@@ -304,6 +239,7 @@ impl PathtracePass {
         path_tracer: Res<PathtracePass>,
         screen_binding: Res<ScreenBinding>,
         object_binding: Res<ObjectBinding>,
+        spectrum_binding: Res<SpectrumBinding>,
         mut profiler: ResMut<RenderProfiler>,
 
         mut frame: ResMut<FrameRecord>,
@@ -313,6 +249,7 @@ impl PathtracePass {
             &mut profiler,
             &screen_binding,
             &object_binding,
+            &spectrum_binding,
         );
     }
 

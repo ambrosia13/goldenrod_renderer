@@ -74,9 +74,9 @@ float3 accumulate(float3 current, float3 previous, inout float frameAge, bool sh
 void compute(
     uniform ParameterBlock<Screen> screen,
     uniform ParameterBlock<Objects> objects,
+    uniform ParameterBlock<Spectrum> spectrum,
 
     uniform ParameterBlock<Textures> textures,
-    uniform ParameterBlock<Spectrum> spectrum,
 
     uint3 globalInvocationId: SV_DispatchThreadID,
     uint3 localInvocationId: SV_GroupThreadID,

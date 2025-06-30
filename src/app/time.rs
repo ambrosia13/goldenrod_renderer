@@ -32,7 +32,6 @@ impl Time {
         self.delta
     }
 
-    #[expect(unused)]
     pub fn frame_count(&self) -> u128 {
         self.frame_count
     }
