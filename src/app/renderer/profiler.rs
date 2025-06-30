@@ -3,6 +3,7 @@ use bevy_ecs::{system::Commands, world::World};
 use wgputil::GpuHandle;
 
 use crate::app::renderer::SurfaceState;
+use crate::app::time::Time;
 
 #[derive(Resource)]
 pub struct RenderProfiler {
@@ -43,6 +44,14 @@ impl RenderProfiler {
     }
 
     pub fn post_render(world: &mut World) {
+        let time = world.resource::<Time>();
+
+        // Don't run this code every frame, for numerical stability, and so we don't
+        // map buffers every frame
+        if time.frame_count() % 40 != 0 {
+            return;
+        }
+
         let surface_state = world.resource::<SurfaceState>();
         let gpu = surface_state.gpu.clone();
 
