@@ -59,13 +59,16 @@ float pathtrace(Ray ray, float wavelength, in Spectrum spectrum, in Objects obje
     return radiance;
 }
 
-float3 accumulate(float3 current, float3 previous, inout float frameAge, bool shouldAccumulate) {
-    if (shouldAccumulate) {
-        current = lerp(previous, current, 1.0 / (frameAge + 1.0));
+float3 accumulate(float3 current, float3 previous, inout float frameAge, in Screen screen) {
+    if (screen.view.frameCount > 0 && screen.shouldAccumulate()) {
+        float3 accumulated = (previous * frameAge + current) / (frameAge + 1.0);
         frameAge += 1.0;
+
+        return accumulated;
     } else {
         // reset frame age
         frameAge = 0.0;
+        return current;
     }
 }
 
@@ -108,22 +111,12 @@ void compute(
 
     float3 color = spectrum.spectralRadianceToRgb(wavelength, radiance);
     color /= 10000.0;
-    //float3 color = spectrum.spectralRadianceToRgb(wavelength, transmittance(ray, wavelength, random));
 
     float4 previousSample = textures.previous.Load(int3(globalInvocationId.xy, 0));
     float3 previousColor = previousSample.rgb;
     float frameAge = previousSample.a;
 
-    if (screen.shouldAccumulate()) {
-        color = lerp(previousColor, color, 1.0 / (frameAge + 1.0));
-        frameAge += 1.0;
-    } else {
-        // reset frame age so we don't accumulate next frame
-        frameAge = 0.0;
-    }
+    float3 accumulatedColor = accumulate(color, previousColor, frameAge, screen);
 
-    // make sure there's no negative color
-    color = max(float3(0.0), color);
-
-    textures.current.Store(globalInvocationId.xy, float4(color, frameAge));
+    textures.current.Store(globalInvocationId.xy, float4(accumulatedColor, frameAge));
 }
