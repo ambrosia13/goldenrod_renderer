@@ -157,7 +157,7 @@ impl PathtracePass {
                     sample_count: color_texture.sample_count(),
                     dimension: color_texture.dimension(),
                     format: color_texture.format(),
-                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                    usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
                     view_formats: &[],
                 });
 
@@ -179,12 +179,18 @@ impl PathtracePass {
                     wgpu::TextureViewDimension::D2,
                     wgpu::StorageTextureAccess::ReadWrite,
                 ),
-                wgputil::binding::bind_texture(
+                wgputil::binding::bind_storage_texture(
                     &previous_color_texture.create_view(&Default::default()),
-                    wgputil::texture::sample_type(&gpu_handle.device, previous_color_texture)
-                        .unwrap(),
+                    color_texture.format(),
                     wgpu::TextureViewDimension::D2,
+                    wgpu::StorageTextureAccess::ReadOnly,
                 ),
+                // wgputil::binding::bind_texture(
+                //     &previous_color_texture.create_view(&Default::default()),
+                //     wgputil::texture::sample_type(&gpu_handle.device, previous_color_texture)
+                //         .unwrap(),
+                //     wgpu::TextureViewDimension::D2,
+                // ),
             ],
         )
     }
