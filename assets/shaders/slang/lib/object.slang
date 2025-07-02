@@ -14,7 +14,7 @@ public struct Objects: Hittable {
     }
 
     public Hit getHit(Ray ray) {
-        Hit hit;
+        Hit hit = Hit.NO_HIT;
 
         // Start iterating from index 1, because the 0th element is garbage data
 
@@ -70,9 +70,6 @@ public struct Sphere: Hittable {
     }
 
     public Hit getHit(Ray ray) {
-        Hit hit;
-        hit.materialIndex = this.materialIndex;
-
         float3 originToCenter = ray.pos - this.position;
 
         float b = dot(originToCenter, ray.dir);
@@ -98,14 +95,11 @@ public struct Sphere: Hittable {
                 float dirDotNormal = dot(ray.dir, outwardNormal);
                 float3 normal = outwardNormal * -sign(dirDotNormal);
 
-                hit.success = true;
-                hit.position = hitPosition;
-                hit.normal = normal;
-                hit.distance = t;
+                return Hit(hitPosition, t, normal, this.materialIndex);
             }
         }
 
-        return hit;
+        return Hit.NO_HIT;
     }
 }
 
@@ -119,9 +113,6 @@ public struct Aabb: Hittable {
     }
 
     public Hit getHit(Ray ray) {
-        Hit hit;
-        hit.materialIndex = this.materialIndex;
-
         bool inside = all(clamp(ray.pos, this.boundsMin, this.boundsMax) == ray.pos);
 
         float3 tMin = (this.boundsMin - ray.pos) / ray.dir;
@@ -133,6 +124,8 @@ public struct Aabb: Hittable {
         float tNear = max3(t1.x, t1.y, t1.z);
         float tFar = min3(t2.x, t2.y, t2.z);
 
+        Hit hit = Hit.NO_HIT;
+        
         if (!inside) {
             hit.success = !(tNear >= tFar || tFar <= 0.0);
             hit.distance = tNear;
@@ -164,7 +157,7 @@ public struct Triangle: Hittable {
     }
 
     public Hit getHit(Ray ray) {
-        Hit hit;
+        Hit hit = Hit.NO_HIT;
         return hit;
     }
 }

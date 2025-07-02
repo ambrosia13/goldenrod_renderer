@@ -37,9 +37,7 @@ float3 ggxSample(float3 normal, float roughness, inout Random random) {
     float y = sinTheta * sin(phi);
     float z = cosTheta;
 
-    float3 roughNormal = mul(float3(x, y, z), getTbnMatrix(normal));
-
-    return roughNormal;
+    return mul(float3(x, y, z), getTbnMatrix(normal));
 }
 
 public namespace MaterialType {
@@ -65,8 +63,10 @@ public struct Material {
 
     public float evaluateBrdf(Hit hit, float wavelength, in Spectrum spectrum, inout Random random, out Ray nextRay) {
         if (this.type == MaterialType.LAMBERTIAN) {
+            float3 cosineVector = cosineSample(hit.normal, random);
+
             float brdf = spectrum.rgbToSpectralRadiance(wavelength, this.getAlbedo());
-            nextRay = Ray(hit.position + hit.normal * 0.0001, random.getCosineVector(hit.normal));
+            nextRay = Ray(hit.biasPosition(), cosineVector);
 
             // cosine sampling implicitly multiplies by the pdf, so no need to divide by pi
             return brdf;
