@@ -33,8 +33,7 @@ def compile(shader_path):
         "-o", str(output_path),
         "-target", "spirv",
         "-O3",
-        "-fvk-use-entrypoint-name",
-        "-matrix-layout-column-major"
+        "-fvk-use-entrypoint-name"
     ]
 
     print(f"Compiling {shader_path} into {output_path}")
@@ -42,6 +41,7 @@ def compile(shader_path):
 
     if result.returncode != 0:
         print(f"Error compiling {shader_path}: {result.stderr}")
+        exit(1)
 
 def main():
     input_path = Path(INPUT_DIR)

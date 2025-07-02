@@ -5,13 +5,14 @@ fn main() {
 
     let slangc = std::env::var("SLANGC").expect("Environment variable SLANGC must be set");
 
-    let status = Command::new("py")
+    let output = Command::new("py")
         .arg("assets/shaders/compile.py")
         .env("SLANGC", &slangc)
-        .status()
+        .output()
         .expect("Failed to run shader compile script");
 
-    if !status.success() {
+    if !output.status.success() {
+        eprintln!("{}", String::from_utf8_lossy(&output.stdout));
         panic!("Shader compilation failed");
     }
 }
