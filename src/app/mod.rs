@@ -34,28 +34,18 @@ pub mod time;
 
 pub fn run() {
     let event_loop = EventLoop::new().expect("Couldn't create window event loop");
-    let mut app = App {
-        state: AppState::Uninit,
-    };
+    let mut app = App { state: None };
 
     event_loop.run_app(&mut app).unwrap();
 }
 
-#[allow(clippy::large_enum_variant)]
-enum AppState {
-    Uninit,
-    Init {
-        window: Arc<Window>,
-        world: World,
-        schedules: Schedules,
-    },
+struct AppState {
+    window: Arc<Window>,
+    world: World,
+    schedules: Schedules,
 }
 
 impl AppState {
-    pub fn is_uninit(&self) -> bool {
-        matches!(self, AppState::Uninit)
-    }
-
     pub fn init(event_loop: &ActiveEventLoop) -> Self {
         let window_attributes = WindowAttributes::default()
             .with_title("goldenrod renderer")
@@ -95,7 +85,7 @@ impl AppState {
         schedules.on_init_render_setup.run(&mut world);
         schedules.on_init_app_setup.run(&mut world);
 
-        Self::Init {
+        Self {
             window,
             world,
             schedules,
@@ -104,13 +94,13 @@ impl AppState {
 }
 
 pub struct App {
-    state: AppState,
+    state: Option<AppState>,
 }
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if self.state.is_uninit() {
-            self.state = AppState::init(event_loop);
+        if self.state.is_none() {
+            self.state = Some(AppState::init(event_loop));
         }
     }
 
@@ -120,7 +110,7 @@ impl ApplicationHandler for App {
         _device_id: winit::event::DeviceId,
         event: winit::event::DeviceEvent,
     ) {
-        let AppState::Init { world, .. } = &mut self.state else {
+        let Some(AppState { world, .. }) = &mut self.state else {
             return;
         };
 
@@ -138,11 +128,11 @@ impl ApplicationHandler for App {
         window_id: winit::window::WindowId,
         event: winit::event::WindowEvent,
     ) {
-        let AppState::Init {
+        let Some(AppState {
             window,
             world,
             schedules,
-        } = &mut self.state
+        }) = &mut self.state
         else {
             return;
         };
