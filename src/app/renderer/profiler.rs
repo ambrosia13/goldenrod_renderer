@@ -1,14 +1,18 @@
+use std::sync::Arc;
+
 use bevy_ecs::resource::Resource;
-use bevy_ecs::{system::Commands, world::World};
+use bevy_ecs::system::Commands;
+use bevy_ecs::system::{Res, ResMut};
 use wgputil::GpuHandle;
 
+use crate::app::fps;
 use crate::app::renderer::SurfaceState;
 use crate::app::time::Time;
 
 #[derive(Resource)]
 pub struct RenderProfiler {
-    pub time_queries: Vec<(String, wgputil::profile::TimeQuery)>,
-    pub times: Vec<(String, std::time::Duration)>,
+    pub time_queries: Vec<(Arc<str>, wgputil::profile::TimeQuery)>,
+    pub times: Vec<(Arc<str>, std::time::Duration)>,
 }
 
 impl RenderProfiler {
@@ -34,7 +38,7 @@ impl RenderProfiler {
         let time_query = wgputil::profile::TimeQuery::new(&gpu_handle.device);
 
         self.time_queries
-            .push((String::from(name.as_ref()), time_query));
+            .push((Arc::from(name.as_ref()), time_query));
 
         index
     }
@@ -43,19 +47,17 @@ impl RenderProfiler {
         commands.insert_resource(Self::new());
     }
 
-    pub fn post_render(world: &mut World) {
-        let time = world.resource::<Time>();
-
+    pub fn post_render(
+        mut profiler: ResMut<RenderProfiler>,
+        surface_state: Res<SurfaceState>,
+        time: Res<Time>,
+    ) {
         // Don't run this code every frame, for numerical stability, and so we don't
         // map buffers every frame
-        if time.frame_count() % 40 != 0 {
+        if time.frame_count() % fps::FPS_NUM_SAMPLES as u128 != 0 {
             return;
         }
 
-        let surface_state = world.resource::<SurfaceState>();
-        let gpu = surface_state.gpu.clone();
-
-        let mut profiler = world.resource_mut::<RenderProfiler>();
-        profiler.read_times(&gpu);
+        profiler.read_times(&surface_state.gpu);
     }
 }
