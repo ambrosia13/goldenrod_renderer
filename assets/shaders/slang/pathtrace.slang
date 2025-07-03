@@ -91,8 +91,7 @@ void compute(
 
     uint pixelId = globalInvocationId.x + globalInvocationId.y * screen.view.width;
     uint frameOffset = screen.view.width * screen.view.height * screen.view.frameCount;
-    uint seed = pixelId + frameOffset;
-    Random random = Random(seed);
+    Random random = Random(pixelId + frameOffset);
 
     float2 texcoord = float2(globalInvocationId.xy) / float2(screen.view.width, screen.view.height);
     texcoord.y = 1.0 - texcoord.y;

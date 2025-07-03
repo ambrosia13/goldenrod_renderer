@@ -36,35 +36,31 @@ impl PathtracePass {
         object_binding: &ObjectBinding,
         profiler: &mut RenderProfiler,
     ) -> Self {
-        let gpu_handle = surface_state.gpu.clone();
+        let gpu = surface_state.gpu.clone();
 
         let (color_texture, previous_color_texture) =
             Self::create_textures(surface_state, renderer_viewport);
 
-        let (texture_bind_group_layout, texture_bind_group) = Self::create_texture_binding(
-            gpu_handle.clone(),
-            &color_texture,
-            &previous_color_texture,
-        );
+        let (texture_bind_group_layout, texture_bind_group) =
+            Self::create_texture_binding(gpu.clone(), &color_texture, &previous_color_texture);
 
-        let pipeline_layout =
-            gpu_handle
-                .device
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("pathtrace_pipeline_layout"),
-                    bind_group_layouts: &[
-                        &screen_binding.bind_group_layout,
-                        &object_binding.bind_group_layout,
-                        &spectrum_binding.bind_group_layout,
-                        &texture_bind_group_layout,
-                    ],
-                    push_constant_ranges: &[],
-                });
+        let pipeline_layout = gpu
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("pathtrace_pipeline_layout"),
+                bind_group_layouts: &[
+                    &screen_binding.bind_group_layout,
+                    &object_binding.bind_group_layout,
+                    &spectrum_binding.bind_group_layout,
+                    &texture_bind_group_layout,
+                ],
+                push_constant_ranges: &[],
+            });
 
-        let (shader_source, shader) = Self::create_shader(&gpu_handle.device);
-        let pipeline = Self::create_pipeline(&gpu_handle.device, &shader, &pipeline_layout);
+        let (shader_source, shader) = Self::create_shader(&gpu.device);
+        let pipeline = Self::create_pipeline(&gpu.device, &shader, &pipeline_layout);
 
-        let time_query_index = profiler.push(&gpu_handle, "pathtrace");
+        let time_query_index = profiler.push(&gpu, "pathtrace");
 
         Self {
             color_texture,

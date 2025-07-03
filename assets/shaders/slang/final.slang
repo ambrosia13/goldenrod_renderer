@@ -16,27 +16,27 @@ public struct CameraResponse {
 
     static const float ISO = 1.0;
 
-    float normalizeIrradiance(float irradiance) {
-        return clamp(irradiance * ISO, 0.0, 1.0);
+    float normalizeIrradiance(float luminance) {
+        return clamp(luminance * ISO, 0.0, 1.0);
     }
 
-    float irradianceToIntensityRed(float irradiance) {
-        return red.Sample(sampler, normalizeIrradiance(irradiance));
+    float irradianceToIntensityRed(float luminance) {
+        return red.Sample(sampler, normalizeIrradiance(luminance));
     }
 
-    float irradianceToIntensityGreen(float irradiance) {
-        return green.Sample(sampler, normalizeIrradiance(irradiance));
+    float irradianceToIntensityGreen(float luminance) {
+        return green.Sample(sampler, normalizeIrradiance(luminance));
     }
 
-    float irradianceToIntensityBlue(float irradiance) {
-        return blue.Sample(sampler, normalizeIrradiance(irradiance));
+    float irradianceToIntensityBlue(float luminance) {
+        return blue.Sample(sampler, normalizeIrradiance(luminance));
     }
 
-    public float3 toneMap(float3 irradiance) {
+    public float3 toneMap(float3 luminance) {
         return float3(
-            irradianceToIntensityRed(irradiance.r),
-            irradianceToIntensityGreen(irradiance.g),
-            irradianceToIntensityBlue(irradiance.b)
+            irradianceToIntensityRed(luminance.r),
+            irradianceToIntensityGreen(luminance.g),
+            irradianceToIntensityBlue(luminance.b)
         );
     }
 }
