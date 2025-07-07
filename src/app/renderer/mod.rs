@@ -8,9 +8,8 @@ use winit::dpi::PhysicalSize;
 use crate::ecs::ResourceWrapper;
 
 pub mod final_pass;
-pub mod passes;
+pub mod material;
 pub mod pathtrace;
-pub mod pipelines;
 pub mod profiler;
 
 pub type SurfaceState = ResourceWrapper<wgputil::SurfaceState>;

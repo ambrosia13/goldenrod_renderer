@@ -73,16 +73,38 @@ pub struct Schedules {
 impl Default for Schedules {
     fn default() -> Self {
         // startup schedules
-        let mut on_init_event_setup = Schedule::new(OnInitEventSetupSchedule);
-        on_init_event_setup.add_systems((
+        let on_init_event_setup = Schedule::new(OnInitEventSetupSchedule);
+        let on_init_render_setup = Schedule::new(OnInitRenderSetupSchedule);
+        let on_init_app_setup = Schedule::new(OnInitAppSetupSchedule);
+
+        // per-frame schedules
+        let on_redraw_pre_frame = Schedule::new(OnRedrawPreFrameSchedule);
+        let on_redraw_render = Schedule::new(OnRedrawRenderSchedule);
+        let on_redraw_post_frame = Schedule::new(OnRedrawPostFrameSchedule);
+        let on_redraw_event_update = Schedule::new(OnRedrawEventUpdateSchedule);
+
+        // event-driven schedules
+        let on_resize = Schedule::new(OnResizeSchedule);
+
+        let mut schedules = Self {
+            on_init_event_setup,
+            on_init_render_setup,
+            on_init_app_setup,
+            on_redraw_pre_frame,
+            on_redraw_render,
+            on_redraw_post_frame,
+            on_redraw_event_update,
+            on_resize,
+        };
+
+        schedules.on_init_event_setup.add_systems((
             event::init::<MenuResizeEvent>,
             event::init::<MouseMotion>,
             event::init::<KeyEvent>,
             event::init::<MouseInput>,
         ));
 
-        let mut on_init_render_setup = Schedule::new(OnInitRenderSetupSchedule);
-        on_init_render_setup.add_systems(
+        schedules.on_init_render_setup.add_systems(
             (
                 (
                     renderer::RendererViewport::init,
@@ -93,6 +115,11 @@ impl Default for Schedules {
                     renderer::profiler::RenderProfiler::init,
                 ),
                 (
+                    (
+                        renderer::material::MaterialTextures::init,
+                        renderer::material::MaterialPipelines::init,
+                    )
+                        .chain(),
                     renderer::pathtrace::PathtracePass::init,
                     renderer::final_pass::FinalPass::init,
                 )
@@ -101,17 +128,14 @@ impl Default for Schedules {
                 .chain(),
         );
 
-        let mut on_init_app_setup = Schedule::new(OnInitAppSetupSchedule);
-        on_init_app_setup.add_systems((
+        schedules.on_init_app_setup.add_systems((
             fps::FpsCounter::init,
             menu::Menu::init,
             object::Objects::init,
             camera::Camera::init,
         ));
 
-        // per-frame schedules
-        let mut on_redraw_pre_frame = Schedule::new(OnRedrawPreFrameSchedule);
-        on_redraw_pre_frame.add_systems(
+        schedules.on_redraw_pre_frame.add_systems(
             (
                 // Input processing before everything else
                 input::handle_keyboard_input_event,
@@ -121,20 +145,19 @@ impl Default for Schedules {
                 .chain(),
         );
 
-        let mut on_redraw_render = Schedule::new(OnRedrawRenderSchedule);
-        on_redraw_render.add_systems((
+        schedules.on_redraw_render.add_systems((
             menu::Menu::update,
             object::binding::ObjectBinding::update,
             camera::binding::ScreenBinding::update,
             (
+                renderer::material::draw,
                 renderer::pathtrace::PathtracePass::update,
                 renderer::final_pass::FinalPass::update,
             )
                 .chain(),
         ));
 
-        let mut on_redraw_post_frame = Schedule::new(OnRedrawPostFrameSchedule);
-        on_redraw_post_frame.add_systems(
+        schedules.on_redraw_post_frame.add_systems(
             (
                 (
                     input::update_system,
@@ -147,31 +170,20 @@ impl Default for Schedules {
                 .chain(),
         );
 
-        let mut on_redraw_event_update = Schedule::new(OnRedrawEventUpdateSchedule);
-        on_redraw_event_update.add_systems((
+        schedules.on_redraw_event_update.add_systems((
             event::update::<MenuResizeEvent>,
             event::update::<MouseMotion>,
             event::update::<KeyEvent>,
             event::update::<MouseInput>,
         ));
 
-        // event-driven schedules
-        let mut on_resize = Schedule::new(OnResizeSchedule);
-        on_resize.add_systems((
+        schedules.on_resize.add_systems((
             camera::Camera::on_resize,
+            renderer::material::MaterialTextures::on_resize,
             renderer::pathtrace::PathtracePass::on_resize,
             renderer::final_pass::FinalPass::on_resize,
         ));
 
-        Self {
-            on_init_event_setup,
-            on_init_render_setup,
-            on_init_app_setup,
-            on_redraw_pre_frame,
-            on_redraw_render,
-            on_redraw_post_frame,
-            on_redraw_event_update,
-            on_resize,
-        }
+        schedules
     }
 }

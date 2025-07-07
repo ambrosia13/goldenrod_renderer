@@ -17,24 +17,16 @@ import noise;
 import space;
 
 public struct Atmosphere {
-    public ConstantBuffer<CelestialBody> celestialBody;
-    public AtmosphereComposition atmosphereComposition;
-    public RWTexture1D<float> solarIrradiance;
-
-    public float getSolarIrradiance(float wavelength) {
-        int coord = int(wavelength - 380.0);
-        return solarIrradiance.Load(coord);
-    }
+    public AtmosphereBody body;
+    public AtmosphereConstituent[] constituents;
 }
 
-public struct CelestialBody {
+public struct AtmosphereBody {
     public float3 planetPos;
     public float planetRadius;
     public float atmosphereRadius;
 
     public float albedo;
-
-    public float sunAngularRadius;
 
     public Sphere getPlanetShell() {
         return Sphere(planetPos, planetRadius);
@@ -60,58 +52,32 @@ public struct CelestialBody {
     }
 }
 
+public struct CelestialLight {
+    public Sphere shell;
+    public Texture1D<float> irradiances;
+}
+
+public struct AtmosphereConstituent {
+    public uint crossSectionScatteringCoefficients;
+    public uint crossSectionAbsorptionCoefficients;
+    public uint numberDensities;
+
+    public float getCrossSectionScatteringCoefficient(float wavelength) {
+        return 1.0;
+    }
+
+    public float getCrossSectionAbsorptionCoefficient(float wavelength) {
+        return 1.0;
+    }
+
+    public float getNumberDensity(float altitude) {
+        return 1.0;
+    }
+}
+
 public struct AtmosphereComposition {
-    // These are read-write textures only because we want them to compile to storage textures on WGSL.
-
-    // row 0: rayleigh
-    // row 1: mie
-    // row 2: ozone
-    // columns: normalized, 0 means sea level, 1 means edge of atmosphere
-    RWTexture2D<float> densities;
-
-    // row 0: rayleigh scattering
-    // row 1: rayleigh absorption
-    // row 2: mie scattering
-    // row 3: mie absorption
-    // row 4: ozone absorption (zero if none)
-    // columns: 400 columns, starting from wavelength 380 nm, ending at 780 nm
-    RWTexture2D<float> coefficients;
-
-    public AtmosphereSample getBaseSample(float wavelength) {
-        // where to sample in the coefficients texture
-        int sampleColumn = clamp(int(wavelength) - 380, 0, 400);
-
-        float rayleighScatteringCoefficient = coefficients.Load(int2(sampleColumn, 0));
-        float rayleighAbsorptionCoefficient = coefficients.Load(int2(sampleColumn, 1));
-        float mieScatteringCoefficient = coefficients.Load(int2(sampleColumn, 2));
-        float mieAbsorptionCoefficient = coefficients.Load(int2(sampleColumn, 3));
-        float ozoneAbsorptionCoefficient = coefficients.Load(int2(sampleColumn, 4));
-
-        Coefficients rayleigh = Coefficients(rayleighScatteringCoefficient, rayleighAbsorptionCoefficient);
-        Coefficients mie = Coefficients(mieScatteringCoefficient, mieAbsorptionCoefficient);
-        Coefficients ozone = Coefficients(0.0, ozoneAbsorptionCoefficient);
-
-        return AtmosphereSample(rayleigh, mie, ozone);
-    }
-
-    public void scale(inout AtmosphereSample sample, in float normalizedAltitude) {
-        int numColumns;
-        int _numRows;
-        int _numLevels;
-        densities.GetDimensions(0, numColumns, _numRows, _numLevels);
-
-        int sampleColumn = int(normalizedAltitude * float(numColumns));
-
-        float rayleighDensity = densities.Load(int2(sampleColumn, 0));
-        float mieDensity = densities.Load(int2(sampleColumn, 1));
-        float ozoneDensity = densities.Load(int2(sampleColumn, 2));
-
-        sample.rayleigh.scattering *= rayleighDensity;
-        sample.rayleigh.absorption *= rayleighDensity;
-        sample.mie.scattering *= mieDensity;
-        sample.mie.absorption *= mieDensity;
-        sample.ozone.absorption *= ozoneDensity;
-    }
+    public StructuredBuffer<Texture1D<float>> luts;
+    public StructuredBuffer<AtmosphereConstituent> constituents;
 }
 
 static const float earthAlbedo = 0.15;
