@@ -3,10 +3,12 @@ use bevy_ecs::{
     system::{Commands, Res},
 };
 use glam::UVec2;
+use gpu_bytes_derive::AsStd430;
 use winit::dpi::PhysicalSize;
 
 use crate::ecs::ResourceWrapper;
 
+pub mod display;
 pub mod final_pass;
 pub mod material;
 pub mod pathtrace;
@@ -15,7 +17,7 @@ pub mod profiler;
 pub type SurfaceState = ResourceWrapper<wgputil::SurfaceState>;
 pub type FrameRecord = ResourceWrapper<wgputil::FrameRecord>;
 
-#[derive(Resource)]
+#[derive(Resource, AsStd430)]
 pub struct RendererViewport {
     pub start: UVec2,
     pub end: UVec2,

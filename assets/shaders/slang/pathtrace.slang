@@ -9,9 +9,9 @@ import lib.noise;
 import lib.spectrum;
 import lib.atmosphere;
 
-struct Textures {
-    RWTexture2D<float4> current;
-    Texture2D<float4> previous;
+public struct MaterialTextures {
+    public RWTexture2D<float4> current;
+    public Texture2D<float4> previous;
 }
 
 float3 sky(in Ray ray, inout Random random) {
@@ -79,7 +79,7 @@ void compute(
     uniform ParameterBlock<Objects> objects,
     uniform ParameterBlock<Spectrum> spectrum,
 
-    uniform ParameterBlock<Textures> textures,
+    uniform ParameterBlock<MaterialTextures> textures,
 
     uint3 globalInvocationId: SV_DispatchThreadID,
     uint3 localInvocationId: SV_GroupThreadID,

@@ -2,11 +2,6 @@ module copy;
 
 import "lib/header";
 
-struct Source {
-    Texture2D texture;
-    SamplerState sampler;
-}
-
 public struct CameraResponse {
     Texture1D<float> red;
     Texture1D<float> green;
@@ -41,9 +36,15 @@ public struct CameraResponse {
     }
 }
 
+struct RendererViewport {
+    uint2 start;
+    uint2 end;
+}
+
 struct Display {
-    float2 effectiveStart;
-    float2 effectiveEnd;
+    Texture2D inputTexture;
+    SamplerState inputSampler;
+    ConstantBuffer<RendererViewport> viewport;
 }
 
 static const float3x3 FRX_ACES_INPUT_MATRIX = float3x3(
@@ -76,20 +77,21 @@ float3 frx_toneMap(float3 color) {
 [[shader("fragment")]]
 float4 fragment(
     VertexOutput input,
+    uniform ParameterBlock<Screen> screen,
     uniform ParameterBlock<CameraResponse> cameraResponse,
-    uniform ParameterBlock<Source> source,
     uniform ParameterBlock<Display> display,
 ): SV_Target {
     float2 uv = input.uv;
+    uint2 screenSize = uint2(screen.view.width, screen.view.height);
 
-    uv -= display.effectiveStart;
-    uv /= (display.effectiveEnd) - (display.effectiveStart);
+    uv -= float2(display.viewport.start) / float2(screenSize);
+    uv /= (float2(display.viewport.end) / float2(screenSize)) - (float2(display.viewport.start) / float2(screenSize));
 
     if (any(clamp(uv, float2(0.0), float2(1.0)) != uv)) {
-        discard;
+        return float4(0.0);
     }
 
-    float4 sample = source.texture.Sample(source.sampler, uv);
+    float4 sample = display.inputTexture.Sample(display.inputSampler, uv);
     sample = max(float4(0.0), sample);
 
     sample.rgb = pow(sample.rgb, float3(1.0 / 2.2));

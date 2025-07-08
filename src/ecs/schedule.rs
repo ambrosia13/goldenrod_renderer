@@ -114,16 +114,10 @@ impl Default for Schedules {
                     camera::binding::ScreenBinding::init,
                     renderer::profiler::RenderProfiler::init,
                 ),
-                (
-                    (
-                        renderer::material::MaterialTextures::init,
-                        renderer::material::MaterialPipelines::init,
-                    )
-                        .chain(),
-                    renderer::pathtrace::PathtracePass::init,
-                    renderer::final_pass::FinalPass::init,
-                )
-                    .chain(),
+                renderer::material::MaterialTextures::init,
+                renderer::material::MaterialPipelines::init,
+                renderer::display::DisplayBinding::init,
+                renderer::display::DisplayPipelines::init,
             )
                 .chain(),
         );
@@ -145,17 +139,16 @@ impl Default for Schedules {
                 .chain(),
         );
 
-        schedules.on_redraw_render.add_systems((
-            menu::Menu::update,
-            object::binding::ObjectBinding::update,
-            camera::binding::ScreenBinding::update,
+        schedules.on_redraw_render.add_systems(((
             (
-                renderer::material::draw,
-                renderer::pathtrace::PathtracePass::update,
-                renderer::final_pass::FinalPass::update,
-            )
-                .chain(),
-        ));
+                menu::Menu::update,
+                object::binding::ObjectBinding::update,
+                camera::binding::ScreenBinding::update,
+            ),
+            renderer::material::draw,
+            renderer::display::draw,
+        )
+            .chain(),));
 
         schedules.on_redraw_post_frame.add_systems(
             (
@@ -179,9 +172,11 @@ impl Default for Schedules {
 
         schedules.on_resize.add_systems((
             camera::Camera::on_resize,
-            renderer::material::MaterialTextures::on_resize,
-            renderer::pathtrace::PathtracePass::on_resize,
-            renderer::final_pass::FinalPass::on_resize,
+            (
+                renderer::material::MaterialTextures::on_resize,
+                renderer::display::DisplayBinding::on_resize,
+            )
+                .chain(),
         ));
 
         schedules
