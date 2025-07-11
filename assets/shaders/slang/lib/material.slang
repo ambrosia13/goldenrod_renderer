@@ -63,7 +63,7 @@ public struct Material {
 
     public float evaluateBrdf(Hit hit, float wavelength, in Spectrum spectrum, inout Random random, out Ray nextRay) {
         if (this.type == MaterialType.LAMBERTIAN) {
-            float3 cosineVector = cosineSample(hit.normal, random);
+            float3 cosineVector = random.getCosineVector(hit.normal);
 
             float brdf = spectrum.rgbToSpectralRadiance(wavelength, this.getAlbedo());
             nextRay = Ray(hit.biasPosition(), cosineVector);
