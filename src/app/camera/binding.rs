@@ -84,7 +84,9 @@ impl ScreenBinding {
             0,
         );
 
-        screen_binding.view_uniform.update_from(&renderer_viewport);
+        screen_binding
+            .view_uniform
+            .update_from(&renderer_viewport, &surface_state);
         wgputil::buffer::write_slice(
             &surface_state.gpu.queue,
             &screen_binding.view_buffer,
@@ -145,17 +147,22 @@ impl CameraUniform {
 
 #[derive(AsStd140, AsStd430, Default)]
 pub struct ViewUniform {
-    width: u32,
-    height: u32,
+    renderer_viewport_width: u32,
+    renderer_viewport_height: u32,
+    window_width: u32,
+    window_height: u32,
     aspect_ratio: f32,
     frame_count: u32,
 }
 
 impl ViewUniform {
-    fn update_from(&mut self, renderer_viewport: &RendererViewport) {
-        self.width = renderer_viewport.get_width();
-        self.height = renderer_viewport.get_height();
-        self.aspect_ratio = self.width as f32 / self.height as f32;
+    fn update_from(&mut self, renderer_viewport: &RendererViewport, surface_state: &SurfaceState) {
+        self.renderer_viewport_width = renderer_viewport.get_width();
+        self.renderer_viewport_height = renderer_viewport.get_height();
+        self.window_width = surface_state.viewport_size.width;
+        self.window_height = surface_state.viewport_size.height;
+        self.aspect_ratio =
+            self.renderer_viewport_width as f32 / self.renderer_viewport_height as f32;
         self.frame_count = self.frame_count.wrapping_add(1);
     }
 }

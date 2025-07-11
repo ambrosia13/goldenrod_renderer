@@ -82,11 +82,11 @@ float4 fragment(
     uniform ParameterBlock<Display> display,
 ): SV_Target {
     float2 uv = input.uv;
-    uint2 screenSize = uint2(screen.view.width, screen.view.height);
+    float2 screenSize = float2(screen.view.windowWidth, screen.view.windowHeight);
 
-    uv -= float2(display.viewport.start) / float2(screenSize);
-    uv /= (float2(display.viewport.end) / float2(screenSize)) - (float2(display.viewport.start) / float2(screenSize));
-
+    uv -= float2(display.viewport.start) / screenSize;
+    uv /= float2(display.viewport.end - display.viewport.start) / screenSize;
+    
     if (any(clamp(uv, float2(0.0), float2(1.0)) != uv)) {
         return float4(0.0);
     }

@@ -85,20 +85,20 @@ void compute(
     uint3 localInvocationId: SV_GroupThreadID,
     uint localInvocationIndex: SV_GroupIndex,
 ) {
-    if (globalInvocationId.x >= screen.view.width || globalInvocationId.y >= screen.view.height) {
+    if (globalInvocationId.x >= screen.view.rendererViewportWidth || globalInvocationId.y >= screen.view.rendererViewportHeight) {
         return;
     }
 
-    uint pixelId = globalInvocationId.x + globalInvocationId.y * screen.view.width;
-    uint frameOffset = screen.view.width * screen.view.height * screen.view.frameCount;
+    uint pixelId = globalInvocationId.x + globalInvocationId.y * screen.view.rendererViewportWidth;
+    uint frameOffset = screen.view.rendererViewportWidth * screen.view.rendererViewportHeight * screen.view.frameCount;
     Random random = Random(pixelId + frameOffset);
 
-    float2 texcoord = float2(globalInvocationId.xy) / float2(screen.view.width, screen.view.height);
+    float2 texcoord = float2(globalInvocationId.xy) / float2(screen.view.rendererViewportWidth, screen.view.rendererViewportHeight);
     texcoord.y = 1.0 - texcoord.y;
 
     if (screen.shouldAccumulate()) {
         // if the screen can accumulate, jitter the texcoord to avoid aliasing
-        texcoord += getTaaOffset(screen.view.frameCount) / float2(screen.view.width, screen.view.height);
+        texcoord += getTaaOffset(screen.view.frameCount) / float2(screen.view.rendererViewportHeight, screen.view.rendererViewportHeight);
     }
 
     float3 viewDir = screen.camera.viewDir(texcoord);

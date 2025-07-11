@@ -59,8 +59,11 @@ public struct Camera {
 }
 
 public struct View {
-    public uint width;
-    public uint height;
+    public uint rendererViewportWidth;
+    public uint rendererViewportHeight;
+    public uint windowWidth;
+    public uint windowHeight;
+
     public float aspectRatio;
 
     public uint frameCount;

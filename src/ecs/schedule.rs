@@ -158,6 +158,7 @@ impl Default for Schedules {
                     profiler::RenderProfiler::post_render,
                 ),
                 // Run the fps update after EVERYTHING is done
+                bevy_ecs::prelude::ApplyDeferred,
                 fps::FpsCounter::update,
             )
                 .chain(),

@@ -12,7 +12,7 @@ use crate::{
         camera::binding::ScreenBinding,
         lookup::SpectrumBinding,
         object::binding::ObjectBinding,
-        renderer::{profiler::RenderProfiler, FrameRecord, SurfaceState},
+        renderer::{profiler::RenderProfiler, FrameRecord, RendererViewport, SurfaceState},
     },
     util,
 };
@@ -27,10 +27,14 @@ pub struct MaterialTextures {
 }
 
 impl MaterialTextures {
-    pub fn init(mut commands: Commands, surface_state: Res<SurfaceState>) {
+    pub fn init(
+        mut commands: Commands,
+        surface_state: Res<SurfaceState>,
+        renderer_viewport: Res<RendererViewport>,
+    ) {
         let gpu = &surface_state.gpu;
 
-        let (current_desc, previous_desc) = Self::desc(&surface_state);
+        let (current_desc, previous_desc) = Self::desc(&renderer_viewport);
 
         let current_texture = gpu.device.create_texture(&current_desc);
         let previous_texture = gpu.device.create_texture(&previous_desc);
@@ -68,10 +72,11 @@ impl MaterialTextures {
     pub fn on_resize(
         mut material_textures: ResMut<MaterialTextures>,
         surface_state: Res<SurfaceState>,
+        renderer_viewport: Res<RendererViewport>,
     ) {
         let gpu = &surface_state.gpu;
 
-        let (current_desc, previous_desc) = Self::desc(&surface_state);
+        let (current_desc, previous_desc) = Self::desc(&renderer_viewport);
 
         let current_texture = gpu.device.create_texture(&current_desc);
         let previous_texture = gpu.device.create_texture(&previous_desc);
@@ -94,12 +99,14 @@ impl MaterialTextures {
         material_textures.bind_group = bind_group;
     }
 
-    fn desc(surface_state: &SurfaceState) -> (wgpu::TextureDescriptor, wgpu::TextureDescriptor) {
+    fn desc(
+        renderer_viewport: &RendererViewport,
+    ) -> (wgpu::TextureDescriptor, wgpu::TextureDescriptor) {
         let current_desc = wgpu::TextureDescriptor {
             label: Some("material_pass_current_texture"),
             size: wgpu::Extent3d {
-                width: surface_state.config.width,
-                height: surface_state.config.height,
+                width: renderer_viewport.get_width(),
+                height: renderer_viewport.get_height(),
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
