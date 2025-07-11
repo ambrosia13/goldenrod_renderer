@@ -12,18 +12,18 @@ use winit::{
 };
 
 use crate::{
-    app::renderer::{FrameRecord, SurfaceState},
-    ecs::{
+    app::{
         events::{KeyEvent, MenuResizeEvent, MouseInput, MouseMotion},
-        schedule::Schedules,
-        ResourceWrapper,
+        renderer::{FrameRecord, SurfaceState},
     },
+    ecs::{schedule::Schedules, ResourceWrapper},
     egui::EguiRenderState,
     wgpu_limits, WGPU_FEATURES,
 };
 
 pub mod camera;
 pub mod control;
+pub mod events;
 pub mod fps;
 pub mod input;
 pub mod lookup;

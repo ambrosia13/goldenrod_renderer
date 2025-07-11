@@ -2,14 +2,13 @@ use bevy_ecs::schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel};
 
 use crate::{
     app::{
-        camera, control, fps, input, lookup, menu, object,
+        camera, control,
+        events::{KeyEvent, MenuResizeEvent, MouseInput, MouseMotion},
+        fps, input, lookup, menu, object,
         renderer::{self, profiler},
         time,
     },
-    ecs::{
-        event,
-        events::{KeyEvent, MenuResizeEvent, MouseInput, MouseMotion},
-    },
+    ecs::event,
 };
 
 /*

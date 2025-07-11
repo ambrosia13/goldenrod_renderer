@@ -6,8 +6,8 @@ use bevy_ecs::{
 use glam::{DVec2, Mat3, Mat4, Quat, Vec3};
 use winit::{dpi::PhysicalSize, keyboard::KeyCode};
 
+use crate::app::events::MouseMotion;
 use crate::app::renderer::RendererViewport;
-use crate::ecs::events::MouseMotion;
 
 use super::{input::Input, time::Time};
 

@@ -3,7 +3,6 @@ use std::ops::{Deref, DerefMut};
 use bevy_ecs::resource::Resource;
 
 mod event;
-pub mod events;
 pub mod schedule;
 
 #[derive(Resource)]

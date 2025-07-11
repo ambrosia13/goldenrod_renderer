@@ -11,8 +11,8 @@ use glam::{UVec2, Vec3};
 use winit::window::Window;
 
 use crate::{
-    app::renderer::RendererViewport,
-    ecs::{events::MenuResizeEvent, ResourceWrapper},
+    app::{events::MenuResizeEvent, renderer::RendererViewport},
+    ecs::ResourceWrapper,
     egui::EguiRenderState,
 };
 

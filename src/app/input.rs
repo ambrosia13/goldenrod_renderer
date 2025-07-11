@@ -4,7 +4,7 @@ use bevy_ecs::system::ResMut;
 use bevy_ecs::{event::EventReader, resource::Resource};
 use winit::{event::MouseButton, keyboard::KeyCode};
 
-use crate::ecs::events::{KeyEvent, MouseInput};
+use crate::app::events::{KeyEvent, MouseInput};
 
 #[derive(Resource)]
 pub struct Input {
