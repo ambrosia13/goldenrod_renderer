@@ -246,19 +246,20 @@ impl Menu {
 
                 ui.horizontal(|ui| {
                     if ui.button("Create").clicked() {
-                        let mut reuse_material = false;
-
-                        if let Some(prev_material) = objects.materials.last() {
-                            if self.object_editor.material == *prev_material {
-                                // To preserve memory, if the material hasn't changed, reuse it with the same index
-                                reuse_material = true;
-                            }
-                        }
+                        let reuse_material = objects
+                            .materials
+                            .last()
+                            .is_some_and(|&prev| prev == self.object_editor.material);
 
                         let material_index = if reuse_material {
-                            objects.materials.len() as u32 - 1
+                            // We don't do len - 1 because of the 1 element padding at the beginning
+                            // of the GPU buffer equivalent.
+                            objects.materials.len() as u32
                         } else {
                             objects.materials.push(self.object_editor.material);
+
+                            // We don't do len - 1 because of the 1 element padding at the beginning
+                            // of the GPU buffer equivalent.
                             objects.materials.len() as u32
                         };
 
@@ -349,11 +350,10 @@ impl Menu {
 
                 ui.heading("Objects");
 
-                // Subtract 1 from the length because we have an extra "null" element in each array
-                ui.label(format!("Material count: {}", objects.materials.len() - 1));
-                ui.label(format!("Sphere count: {}", objects.spheres.len() - 1));
-                ui.label(format!("AABB count: {}", objects.aabbs.len() - 1));
-                ui.label(format!("Triangle count: {}", objects.triangles.len() - 1));
+                ui.label(format!("Material count: {}", objects.materials.len()));
+                ui.label(format!("Sphere count: {}", objects.spheres.len()));
+                ui.label(format!("AABB count: {}", objects.aabbs.len()));
+                ui.label(format!("Triangle count: {}", objects.triangles.len()));
 
                 ui.separator();
 

@@ -81,34 +81,47 @@ impl ObjectBinding {
             return;
         }
 
+        // Pad the original list values with null to avoid empty buffers
+        let mut materials = vec![Material::null()];
+        materials.extend_from_slice(&objects.materials);
+
+        let mut spheres = vec![Sphere::null()];
+        spheres.extend_from_slice(&objects.spheres);
+
+        let mut aabbs = vec![Aabb::null()];
+        aabbs.extend_from_slice(&objects.aabbs);
+
+        let mut triangles = vec![Triangle::null()];
+        triangles.extend_from_slice(&objects.triangles);
+
         let usage = wgpu::BufferUsages::STORAGE;
 
         let device = &surface_state.gpu.device;
         object_binding.materials_buffer =
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("materials_buffer"),
-                contents: objects.materials.as_std430().as_slice(),
+                contents: materials.as_std430().as_slice(),
                 usage,
             });
 
         object_binding.spheres_buffer =
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("spheres_buffer"),
-                contents: objects.spheres.as_std430().as_slice(),
+                contents: spheres.as_std430().as_slice(),
                 usage,
             });
 
         object_binding.aabbs_buffer =
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("aabbs_buffer"),
-                contents: objects.aabbs.as_std430().as_slice(),
+                contents: aabbs.as_std430().as_slice(),
                 usage,
             });
 
         object_binding.triangles_buffer =
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("triangles_buffer"),
-                contents: objects.triangles.as_std430().as_slice(),
+                contents: triangles.as_std430().as_slice(),
                 usage,
             });
 

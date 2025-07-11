@@ -15,10 +15,10 @@ pub struct Objects {
 
 impl Objects {
     pub fn init(mut commands: Commands) {
-        let materials = vec![Material::null()];
-        let spheres = vec![Sphere::null()];
-        let aabbs = vec![Aabb::null()];
-        let triangles = vec![Triangle::null()];
+        let materials = vec![];
+        let spheres = vec![];
+        let aabbs = vec![];
+        let triangles = vec![];
 
         commands.insert_resource(Objects {
             materials,
