@@ -1,16 +1,15 @@
 use bevy_ecs::schedule::{IntoScheduleConfigs, Schedule, ScheduleLabel};
 
+use crate::app::bindless;
+use crate::app::renderer::profiler;
 use crate::{
     app::{
         camera, control,
         events::{KeyEvent, MenuResizeEvent, MouseInput, MouseMotion},
-        fps, input, lookup, menu, object,
-        renderer::{self, profiler},
-        time,
+        fps, input, luts, menu, object, renderer, time,
     },
     ecs::event,
 };
-
 /*
 ***App lifecycle***
 
@@ -105,13 +104,14 @@ impl Default for Schedules {
 
         schedules.on_init_render_setup.add_systems(
             (
+                bindless::BindlessHeap::init,
                 (
                     renderer::RendererViewport::init,
-                    lookup::SpectrumBinding::init,
-                    lookup::CameraResponseBinding::init,
+                    luts::SpectrumBinding::init,
+                    luts::CameraResponseBinding::init,
                     object::binding::ObjectBinding::init,
                     camera::binding::ScreenBinding::init,
-                    renderer::profiler::RenderProfiler::init,
+                    profiler::RenderProfiler::init,
                 ),
                 renderer::material::MaterialTextures::init,
                 renderer::material::MaterialPipelines::init,
@@ -138,16 +138,18 @@ impl Default for Schedules {
                 .chain(),
         );
 
-        schedules.on_redraw_render.add_systems(((
+        schedules.on_redraw_render.add_systems(
             (
-                menu::Menu::update,
-                object::binding::ObjectBinding::update,
-                camera::binding::ScreenBinding::update,
-            ),
-            renderer::material::draw,
-            renderer::display::draw,
-        )
-            .chain(),));
+                (
+                    menu::Menu::update,
+                    object::binding::ObjectBinding::update,
+                    camera::binding::ScreenBinding::update,
+                ),
+                renderer::material::draw,
+                renderer::display::draw,
+            )
+                .chain(),
+        );
 
         schedules.on_redraw_post_frame.add_systems(
             (

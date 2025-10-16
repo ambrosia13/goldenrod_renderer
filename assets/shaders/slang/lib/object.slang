@@ -9,7 +9,7 @@ public struct Objects: Hittable {
     public StructuredBuffer<Aabb> aabbs;
     public StructuredBuffer<Triangle> triangles;
 
-    public bool isUnhittable() {
+    public override bool isUnhittable() {
         return true;
     }
 
@@ -65,7 +65,7 @@ public struct Sphere: Hittable {
         this.materialIndex = uint(-1);
     }
 
-    public bool isUnhittable() {
+    public override bool isUnhittable() {
         return this.radius <= 0.0 || this.materialIndex == uint.maxValue;
     }
 
@@ -108,7 +108,7 @@ public struct Aabb: Hittable {
     public float3 boundsMax;
     public uint materialIndex;
 
-    public bool isUnhittable() {
+    public override bool isUnhittable() {
         return any(this.boundsMax <= this.boundsMin) || this.materialIndex == uint.maxValue;
     }
 
@@ -152,7 +152,7 @@ public struct Triangle: Hittable {
     public float3 c;
     public uint materialIndex;
 
-    public bool isUnhittable() {
+    public override bool isUnhittable() {
         return all(this.a == this.b) || all(this.b == this.c) || all(this.a == this.c) || this.materialIndex == uint.maxValue;
     }
 

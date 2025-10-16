@@ -10,7 +10,7 @@ use wgputil::shader::ShaderSource;
 use crate::{
     app::{
         camera::binding::ScreenBinding,
-        lookup::SpectrumBinding,
+        luts::SpectrumBinding,
         object::binding::ObjectBinding,
         renderer::{profiler::RenderProfiler, FrameRecord, RendererViewport, SurfaceState},
     },

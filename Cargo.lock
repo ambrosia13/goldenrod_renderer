@@ -1227,11 +1227,9 @@ dependencies = [
  "egui-winit",
  "env_logger",
  "glam 0.30.2",
- "gpu_bytes",
- "gpu_bytes_derive",
+ "gpu_layout",
  "log",
  "pollster",
- "regex",
  "wgpu",
  "wgputil",
  "winit",
@@ -1289,20 +1287,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpu_bytes"
-version = "0.1.0"
-source = "git+https://github.com/ambrosia13/gpu_bytes.git#8ec8c6631832af6eb06e43aaea63f4ba784cacbd"
+name = "gpu_layout"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6079b15fe03961b4b7a5f5a12e1b14186a854b72e83d980802ec83717a30bc4d"
 dependencies = [
  "bytemuck",
  "glam 0.30.2",
+ "gpu_layout_derive",
 ]
 
 [[package]]
-name = "gpu_bytes_derive"
-version = "0.1.0"
-source = "git+https://github.com/ambrosia13/gpu_bytes_derive.git#672719d9f84f805fd2b92547032fc1da44885e3a"
+name = "gpu_layout_derive"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93d56ff14d645024cbdd7c4c730b3e08cba594da134e7e9662d4227ce24076c6"
 dependencies = [
- "gpu_bytes",
  "proc-macro2",
  "quote",
  "syn 2.0.100",
@@ -3676,8 +3676,8 @@ dependencies = [
 
 [[package]]
 name = "wgputil"
-version = "0.1.0"
-source = "git+https://github.com/ambrosia13/wgputil.git?branch=main#e91eed7409688f4d9a225025a21905c0088696a7"
+version = "0.1.1"
+source = "git+https://github.com/ambrosia13/wgputil.git?branch=wgpu_25_0_0#d7548602e7e746650a68eddc1f537b1904fbc067"
 dependencies = [
  "bytemuck",
  "image",

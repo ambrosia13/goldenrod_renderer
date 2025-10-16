@@ -30,7 +30,7 @@ float pathtrace(Ray ray, float wavelength, in Spectrum spectrum, in Objects obje
 
         if (!hit.success) {
             // hit sky
-            float atmosphereRadiance = pathtraceAtmosphere(ray, wavelength, random);
+            float atmosphereRadiance = 0.1;//pathtraceAtmosphere(ray, wavelength, random);
             radiance += throughput * atmosphereRadiance;
             break;
         }
@@ -57,6 +57,43 @@ float pathtrace(Ray ray, float wavelength, in Spectrum spectrum, in Objects obje
     }
 
     return radiance;
+}
+
+float3 stylizedAtmosphere(Ray ray) {
+    float3 lightDir = float3(0.1, 0.2, -0.8);
+
+    float planetRadius = 90.0;
+    float atmosphereRadius = 100.0;
+    float3 atmosphereOrigin = float3(0.0, -lerp(planetRadius, atmosphereRadius, 0.2), 0.0);
+    
+    Sphere planet = Sphere(atmosphereOrigin, planetRadius);
+    Sphere atmosphere = Sphere(atmosphereOrigin, atmosphereRadius);
+
+    Hit planetHit = ray.intersect(planet);
+    Hit atmosphereHit = ray.intersect(atmosphere);
+
+    float NdotH = clamp(ray.dir.y, 0.0, 1.0);
+    float NdotL = clamp(dot(ray.dir, lightDir), 0.0, 1.0);
+
+    float3 atmosphereColor = float3(0.2, 0.3, 1.0);
+    float3 horizonColor = float3(0.7, 0.8, 0.9);
+    float3 groundColor = float3(0.1);
+
+    float3 color = float3(0.0);
+
+    if (planetHit.success) {
+        float fogDensity = 0.01;
+        float fogFactor = exp(-planetHit.distance * fogDensity);
+
+        color = lerp(horizonColor, groundColor, fogFactor);
+    } else if (atmosphereHit.success) {
+        float turbidity = 0.01;
+        float opticalDepth = exp(-atmosphereHit.distance * turbidity);
+
+        color = lerp(horizonColor, atmosphereColor, opticalDepth);
+    }
+
+    return color;
 }
 
 float3 accumulate(float3 current, float3 previous, inout float frameAge, in Screen screen) {
@@ -116,6 +153,7 @@ void compute(
     float frameAge = previousSample.a;
 
     float3 accumulatedColor = accumulate(color, previousColor, frameAge, screen);
+    accumulatedColor = stylizedAtmosphere(ray);
 
     textures.current.Store(globalInvocationId.xy, float4(accumulatedColor, frameAge));
 }

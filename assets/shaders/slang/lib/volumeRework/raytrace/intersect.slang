@@ -1,4 +1,4 @@
-module intersect;
+import lib.volumeRework.scene.handle;
 
 public struct Ray {
     public float3 pos;
@@ -9,31 +9,32 @@ public struct Ray {
     {
         return object.getHit(this);
     }
+
+    public float3 getPoint(float t) {
+        return this.pos + this.dir * t;
+    }
 }
 
 public struct Hit {
-    public bool success;
     public float3 position;
     public float distance;
     public float3 normal;
-    public uint materialIndex;
+    public bool backFace;
 
-    public static const Hit NO_HIT = Hit();
+    public bool success;
+
+    public static const Hit NULL = Hit();
 
     private __init() {
         success = false;
-        position = float3(0.0);
-        distance = 0.0;
-        normal = float3(0.0);
-        materialIndex = 0;
     }
 
-    public __init(float3 position, float distance, float3 normal, uint materialIndex) {
+    public __init(float3 position, float distance, float3 normal, bool backFace) {
         success = true;
         this.position = position;
         this.distance = distance;
         this.normal = normal;
-        this.materialIndex = materialIndex;
+        this.backFace = backFace;
     }
 
     public float3 biasPosition() {
@@ -67,6 +68,6 @@ public interface Hittable {
     bool isUnhittable() {
         return false;
     }
-    
+
     Hit getHit(Ray ray);
 }

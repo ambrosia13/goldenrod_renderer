@@ -3,15 +3,15 @@ use bevy_ecs::{
     resource::Resource,
     system::{Commands, Res, ResMut},
 };
-use gpu_bytes::AsStd430;
+use gpu_layout::{AsGpuBytes, Std430Layout};
 use wgpu::util::DeviceExt;
 
+use super::Objects;
+use crate::app::bindless::BindlessHeap;
 use crate::app::{
     object::{Aabb, Material, Sphere, Triangle},
     renderer::SurfaceState,
 };
-
-use super::Objects;
 
 #[derive(Resource)]
 pub struct ObjectBinding {
@@ -25,7 +25,11 @@ pub struct ObjectBinding {
 }
 
 impl ObjectBinding {
-    pub fn init(mut commands: Commands, surface_state: Res<SurfaceState>) {
+    pub fn init(
+        mut commands: Commands,
+        surface_state: Res<SurfaceState>,
+        mut bindless_heap: ResMut<BindlessHeap>,
+    ) {
         // create empty buffers at first
         let create_buffer = |name: &str, data: &[u8]| {
             surface_state
@@ -43,10 +47,22 @@ impl ObjectBinding {
         let aabbs = vec![Aabb::null()];
         let triangles = vec![Triangle::null()];
 
-        let materials_buffer = create_buffer("materials_buffer", materials.as_std430().as_slice());
-        let spheres_buffer = create_buffer("spheres_buffer", spheres.as_std430().as_slice());
-        let aabbs_buffer = create_buffer("aabbs_buffer", aabbs.as_std430().as_slice());
-        let triangles_buffer = create_buffer("triangles_buffer", triangles.as_std430().as_slice());
+        let materials_buffer = create_buffer(
+            "materials_buffer",
+            materials.as_gpu_bytes::<Std430Layout>().as_slice(),
+        );
+        let spheres_buffer = create_buffer(
+            "spheres_buffer",
+            spheres.as_gpu_bytes::<Std430Layout>().as_slice(),
+        );
+        let aabbs_buffer = create_buffer(
+            "aabbs_buffer",
+            aabbs.as_gpu_bytes::<Std430Layout>().as_slice(),
+        );
+        let triangles_buffer = create_buffer(
+            "triangles_buffer",
+            triangles.as_gpu_bytes::<Std430Layout>().as_slice(),
+        );
 
         let (bind_group_layout, bind_group) = wgputil::binding::create_sequential_linked(
             &surface_state.gpu.device,
@@ -58,6 +74,8 @@ impl ObjectBinding {
                 wgputil::binding::bind_buffer_storage(&triangles_buffer, true),
             ],
         );
+
+        bindless_heap.insert_buffer(&materials_buffer);
 
         let object_binding = Self {
             materials_buffer,
@@ -100,28 +118,28 @@ impl ObjectBinding {
         object_binding.materials_buffer =
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("materials_buffer"),
-                contents: materials.as_std430().as_slice(),
+                contents: materials.as_gpu_bytes::<Std430Layout>().as_slice(),
                 usage,
             });
 
         object_binding.spheres_buffer =
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("spheres_buffer"),
-                contents: spheres.as_std430().as_slice(),
+                contents: spheres.as_gpu_bytes::<Std430Layout>().as_slice(),
                 usage,
             });
 
         object_binding.aabbs_buffer =
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("aabbs_buffer"),
-                contents: aabbs.as_std430().as_slice(),
+                contents: aabbs.as_gpu_bytes::<Std430Layout>().as_slice(),
                 usage,
             });
 
         object_binding.triangles_buffer =
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("triangles_buffer"),
-                contents: triangles.as_std430().as_slice(),
+                contents: triangles.as_gpu_bytes::<Std430Layout>().as_slice(),
                 usage,
             });
 

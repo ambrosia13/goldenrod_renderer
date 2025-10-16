@@ -1,10 +1,20 @@
-namespace DeltaTrackCollision {
-    public static const uint NULL = 0;
-    public static const uint BOUNDARY = 1;
-    public static const uint RAYLEIGH_SCATTERING = 2;
-    public static const uint MIE_SCATTERING = 3;
-    public static const uint OZONE_ABSORPTION = 4;
+import material;
+
+enum DeltaTrackCollision {
+    NULL, 
+    BOUNDARY,
+    RAYLEIGH_SCATTERING,
+    MIE_SCATTERING,
+    OZONE_ABSORPTION,
 }
+
+// namespace DeltaTrackCollision {
+//     public static const uint NULL = 0;
+//     public static const uint BOUNDARY = 1;
+//     public static const uint RAYLEIGH_SCATTERING = 2;
+//     public static const uint MIE_SCATTERING = 3;
+//     public static const uint OZONE_ABSORPTION = 4;
+// }
 
 enum Collision {
     NULL, BOUNDARY, RAYLEIGH, MIE, OZONE,
@@ -16,17 +26,24 @@ import object;
 import noise;
 import space;
 
+/*
+
 public struct Atmosphere {
-    public AtmosphereBody body;
-    public AtmosphereConstituent[] constituents;
+    public ConstantBuffer<AtmosphereBody> body;
+    public StructuredBuffer<CelestialLight> lights;
+    public StructuredBuffer<AtmosphereConstituent> constituents;
+
+    // Wavelength range: 380-780 nm
+    // Altitude range: 0-120 km
+    public Texture1D<float>[] lookupTables;
 }
 
 public struct AtmosphereBody {
-    public float3 planetPos;
+    public float3 position;
     public float planetRadius;
     public float atmosphereRadius;
 
-    public float albedo;
+    public Material material;
 
     public Sphere getPlanetShell() {
         return Sphere(planetPos, planetRadius);
@@ -37,48 +54,27 @@ public struct AtmosphereBody {
     }
 
     public float getAltitude(float3 position) {
-        return distance(position, this.planetPos) - this.planetRadius;
+        return distance(position, this.position) - this.planetRadius;
     }
 
     public float getNormalizedAltitude(float3 position) {
         return clamp(getAltitude(position) / (atmosphereRadius - planetRadius), 0.0, 1.0);
     }
-
-    public float3 sampleSunDirection(Ray ray, inout Random random, out float pdf) {
-        float r1 = random.getFloat();
-        float r2 = random.getFloat();
-
-        
-    }
 }
 
 public struct CelestialLight {
     public Sphere shell;
-    public Texture1D<float> irradiances;
+    public uint irradiances; // by wavelength
 }
 
+// Represents an abstract particle type that contributes to Rayleigh scattering, Mie scattering
 public struct AtmosphereConstituent {
-    public uint crossSectionScatteringCoefficients;
-    public uint crossSectionAbsorptionCoefficients;
-    public uint numberDensities;
-
-    public float getCrossSectionScatteringCoefficient(float wavelength) {
-        return 1.0;
-    }
-
-    public float getCrossSectionAbsorptionCoefficient(float wavelength) {
-        return 1.0;
-    }
-
-    public float getNumberDensity(float altitude) {
-        return 1.0;
-    }
+    public uint crossSectionScatteringCoefficients; // by wavelength
+    public uint crossSectionAbsorptionCoefficients; // by wavelength
+    public uint numberDensities; // by altitude
 }
 
-public struct AtmosphereComposition {
-    public StructuredBuffer<Texture1D<float>> luts;
-    public StructuredBuffer<AtmosphereConstituent> constituents;
-}
+*/
 
 static const float earthAlbedo = 0.15;
 
@@ -277,7 +273,7 @@ float getInteractionDistance(float majorantExtinction, inout Random random) {
     return -log(1.0 - random.getFloat()) / majorantExtinction;
 }
 
-uint deltaTrack(Ray ray, AtmosphereSample baseSample, float wavelength, inout Random random, float tMax, out float t) {
+DeltaTrackCollision deltaTrack(Ray ray, AtmosphereSample baseSample, float wavelength, inout Random random, float tMax, out float t) {
     float freePathCoefficient = baseSample.rayleigh.extinction() + baseSample.mie.extinction() + baseSample.ozone.extinction();
 
     for (int i = 0; i < 256; ++i) {
@@ -316,14 +312,6 @@ uint deltaTrack(Ray ray, AtmosphereSample baseSample, float wavelength, inout Ra
 
             return DeltaTrackCollision.OZONE_ABSORPTION;
         }
-
-        // if (r < sample.rayleigh.extinction()) {
-        //     return DeltaTrackCollision.RAYLEIGH_SCATTERING;
-        // } else if (r < sample.mie.extinction()) {
-        //     return DeltaTrackCollision.MIE_SCATTERING;
-        // } else {
-        //     return DeltaTrackCollision.OZONE_ABSORPTION;
-        // }
     }
 
     return DeltaTrackCollision.NULL;
@@ -408,7 +396,7 @@ public float pathtraceAtmosphere(Ray ray, float wavelength, inout Random random)
 
     const int maxBounces = 100;
 
-    for (int i = 0; i < maxBounces; ++i) {
+    pathtraceLoop: for (int i = 0; i < maxBounces; ++i) {
         Hit earthHit = ray.intersect(earthShell);
         Hit atmosphereHit = ray.intersect(atmosphereShell);
         Hit closestHit = Hit.merge(earthHit, atmosphereHit);
@@ -422,13 +410,25 @@ public float pathtraceAtmosphere(Ray ray, float wavelength, inout Random random)
 
         float tMax = closestHit.distance;
         float t = 0.0;
-        uint collisionType = deltaTrack(ray, baseSample, wavelength, random, tMax, t);
+        DeltaTrackCollision collisionType = deltaTrack(ray, baseSample, wavelength, random, tMax, t);
 
         // float _t = 0.0;
         // float sunTransmittance = ratioTrack(sunRay, baseSample, wavelength, random, closestHit.distance, _t);
         // Ray sunRay = Ray(ray.pos, normalize(float3(0.1, 0.4, 0.3)));
         // float sunTransmittance = sunTransmittance(sunRay, baseSample, wavelength, random);
         // float sunEmission = sunIrradiance * sunTransmittance;
+
+        switch (collisionType) {
+            case DeltaTrackCollision.BOUNDARY: {
+
+            }
+            case DeltaTrackCollision.RAYLEIGH_SCATTERING | DeltaTrackCollision.MIE_SCATTERING: {
+
+            }
+            default: {
+                break pathtraceLoop;
+            }
+        };
 
         if (collisionType == DeltaTrackCollision.BOUNDARY) { // hit planet or atmosphere boundary
             if (earthHit.success) { // hit planet, using lambertian material                

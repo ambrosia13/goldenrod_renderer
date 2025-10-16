@@ -5,20 +5,22 @@ import os
 
 SLANGC = os.environ.get("SLANGC")
 
-if not SLANGC: 
-    raise RuntimeError("environemtn variable SLANGC not set")
+if not SLANGC:
+    raise RuntimeError("environment variable SLANGC not set")
 
 INPUT_DIR = "assets/shaders/slang"
 OUTPUT_DIR = "assets/shaders/spirv"
 
-ENTRYPOINT_PATTERN = re.compile(r'\[\[shader\("(\w+)"\)\]\]\s*\w+\s+(\w+)\s*\(')
+ENTRYPOINT_PATTERN = re.compile(r'\[\[shader\("(\w+)"\)]]\s*\w+\s+(\w+)\s*\(')
+
 
 def has_entrypoint(path):
     with open(path, 'r', encoding='utf-8') as f:
         source = f.read()
-    
+
     entrypoints = ENTRYPOINT_PATTERN.findall(source)
     return len(entrypoints) > 0
+
 
 def compile(shader_path):
     # skip compilation if there is no entrypoint in the file
@@ -26,14 +28,15 @@ def compile(shader_path):
         return
 
     relative_path = Path.relative_to(shader_path, INPUT_DIR)
-    output_path = OUTPUT_DIR / relative_path.with_suffix(".spv")
+    output_path = Path(OUTPUT_DIR) / relative_path.with_suffix(".spv")
 
     cmd = [
         SLANGC, str(shader_path),
         "-o", str(output_path),
         "-target", "spirv",
         "-O3",
-        "-fvk-use-entrypoint-name"
+        "-fvk-use-entrypoint-name",
+        "-bindless-space-index", "7",
     ]
 
     print(f"Compiling {shader_path} into {output_path}")
@@ -43,11 +46,13 @@ def compile(shader_path):
         print(f"Error compiling {shader_path}: {result.stderr}")
         exit(1)
 
+
 def main():
     input_path = Path(INPUT_DIR)
 
     for shader_path in input_path.rglob("*.slang"):
         compile(shader_path)
+
 
 if __name__ == "__main__":
     main()

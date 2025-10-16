@@ -21,12 +21,14 @@ use crate::{
     wgpu_limits, WGPU_FEATURES,
 };
 
+pub mod bindless;
 pub mod camera;
 pub mod control;
 pub mod events;
 pub mod fps;
 pub mod input;
 pub mod lookup;
+pub mod luts;
 pub mod menu;
 pub mod object;
 pub mod renderer;
@@ -65,6 +67,11 @@ impl AppState {
             WGPU_FEATURES,
             wgpu_limits(),
         )));
+
+        log::info!(
+            "GPU Adapter capabilities: \n{:#?}",
+            surface_state.gpu.adapter.limits()
+        );
 
         let egui_render_state = EguiRenderState::new(
             &surface_state.gpu.device,

@@ -1,7 +1,7 @@
 use bevy_ecs::resource::Resource;
 use bevy_ecs::system::Commands;
 use glam::Vec3;
-use gpu_bytes_derive::AsStd430;
+use gpu_layout::{AsGpuBytes, GpuBytes};
 
 pub mod binding;
 
@@ -38,13 +38,17 @@ pub enum MaterialType {
     Dielectric = 2,
 }
 
-impl gpu_bytes::AsStd430 for MaterialType {
-    fn as_std430(&self) -> gpu_bytes::Std430Bytes {
-        (*self as u32).as_std430()
+impl gpu_layout::AsGpuBytes for MaterialType {
+    fn as_gpu_bytes<L: gpu_layout::GpuLayout + ?Sized>(&'_ self) -> gpu_layout::GpuBytes<'_, L> {
+        let mut buf = GpuBytes::empty();
+
+        buf.write(&(*self as u32));
+
+        buf
     }
 }
 
-#[derive(AsStd430, Default, Clone, Copy, Debug, PartialEq)]
+#[derive(AsGpuBytes, Default, Clone, Copy, Debug, PartialEq)]
 pub struct Material {
     pub albedo: Vec3,
     pub roughness: f32,
@@ -62,7 +66,7 @@ impl Material {
     }
 }
 
-#[derive(AsStd430, Default, Clone, Copy, Debug)]
+#[derive(AsGpuBytes, Default, Clone, Copy, Debug)]
 pub struct Sphere {
     pub center: Vec3,
     pub radius: f32,
@@ -78,7 +82,7 @@ impl Sphere {
     }
 }
 
-#[derive(AsStd430, Default, Clone, Copy, Debug)]
+#[derive(AsGpuBytes, Default, Clone, Copy, Debug)]
 pub struct Aabb {
     pub min: Vec3,
     pub max: Vec3,
@@ -94,7 +98,7 @@ impl Aabb {
     }
 }
 
-#[derive(AsStd430, Default, Clone, Copy, Debug)]
+#[derive(AsGpuBytes, Default, Clone, Copy, Debug)]
 pub struct Triangle {
     pub a: Vec3,
     pub b: Vec3,

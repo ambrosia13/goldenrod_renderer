@@ -3,8 +3,7 @@ use bevy_ecs::{
     system::{Commands, Res, ResMut},
 };
 use glam::{Mat4, Vec3};
-use gpu_bytes::AsStd140;
-use gpu_bytes_derive::{AsStd140, AsStd430};
+use gpu_layout::{AsGpuBytes, Std140Layout};
 use wgpu::util::DeviceExt;
 
 use crate::app::renderer::{RendererViewport, SurfaceState};
@@ -35,7 +34,7 @@ impl ScreenBinding {
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("camera_buffer"),
-                    contents: camera_uniform.as_std140().as_slice(),
+                    contents: camera_uniform.as_gpu_bytes::<Std140Layout>().as_slice(),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 });
 
@@ -45,7 +44,7 @@ impl ScreenBinding {
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("view_buffer"),
-                    contents: view_uniform.as_std140().as_slice(),
+                    contents: view_uniform.as_gpu_bytes::<Std140Layout>().as_slice(),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 });
 
@@ -80,7 +79,10 @@ impl ScreenBinding {
         wgputil::buffer::write_slice(
             &surface_state.gpu.queue,
             &screen_binding.camera_buffer,
-            screen_binding.camera_uniform.as_std140().as_slice(),
+            screen_binding
+                .camera_uniform
+                .as_gpu_bytes::<Std140Layout>()
+                .as_slice(),
             0,
         );
 
@@ -90,13 +92,16 @@ impl ScreenBinding {
         wgputil::buffer::write_slice(
             &surface_state.gpu.queue,
             &screen_binding.view_buffer,
-            screen_binding.view_uniform.as_std140().as_slice(),
+            screen_binding
+                .view_uniform
+                .as_gpu_bytes::<Std140Layout>()
+                .as_slice(),
             0,
         );
     }
 }
 
-#[derive(AsStd140, AsStd430, Default)]
+#[derive(AsGpuBytes, Default)]
 pub struct CameraUniform {
     view_projection_matrix: Mat4,
     view_matrix: Mat4,
@@ -145,7 +150,7 @@ impl CameraUniform {
     }
 }
 
-#[derive(AsStd140, AsStd430, Default)]
+#[derive(AsGpuBytes, Default)]
 pub struct ViewUniform {
     renderer_viewport_width: u32,
     renderer_viewport_height: u32,

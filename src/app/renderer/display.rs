@@ -4,14 +4,14 @@ use bevy_ecs::{
     resource::Resource,
     system::{Commands, Local, Res, ResMut},
 };
-use gpu_bytes::AsStd430;
+use gpu_layout::{AsGpuBytes, Std140Layout};
 use wgpu::util::DeviceExt;
 use wgputil::shader::ShaderSource;
 
 use crate::{
     app::{
         camera::binding::ScreenBinding,
-        lookup::CameraResponseBinding,
+        luts::CameraResponseBinding,
         renderer::{
             material::MaterialTextures, profiler::RenderProfiler, FrameRecord, RendererViewport,
             SurfaceState,
@@ -59,7 +59,7 @@ impl DisplayBinding {
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("display_viewport_buffer"),
-                    contents: renderer_viewport.as_std430().as_slice(),
+                    contents: renderer_viewport.as_gpu_bytes::<Std140Layout>().as_slice(),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 });
 
@@ -90,7 +90,7 @@ impl DisplayBinding {
         surface_state.gpu.queue.write_buffer(
             &display_binding.viewport_buffer,
             0,
-            renderer_viewport.as_std430().as_slice(),
+            renderer_viewport.as_gpu_bytes::<Std140Layout>().as_slice(),
         );
 
         let view = material_textures
