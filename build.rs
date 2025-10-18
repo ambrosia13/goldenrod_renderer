@@ -5,7 +5,7 @@ fn main() {
 
     let slangc = std::env::var("SLANGC").expect("Environment variable SLANGC must be set");
 
-    let output = Command::new("py")
+    let output = Command::new("python3")
         .arg("assets/shaders/compile.py")
         .env("SLANGC", &slangc)
         .output()
