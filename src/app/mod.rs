@@ -83,7 +83,7 @@ impl AppState {
 
         world.insert_resource(ResourceWrapper::new(window.clone()));
         world.insert_resource(surface_state);
-        world.insert_resource(egui_render_state);
+        world.insert_non_send_resource(egui_render_state);
         world.insert_resource(Input::new());
         world.insert_resource(Time::new());
 
@@ -149,7 +149,7 @@ impl ApplicationHandler for App {
         }
 
         // Let the egui context process the update on its own
-        let mut egui_render_state = world.resource_mut::<EguiRenderState>();
+        let mut egui_render_state = world.non_send_resource_mut::<EguiRenderState>();
         egui_render_state.handle_input(window, &event);
 
         // Now our app will process event
@@ -213,7 +213,7 @@ impl ApplicationHandler for App {
                 let gpu_handle = surface_state.gpu.clone();
                 let surface_texture_view = frame.surface_texture_view.clone();
 
-                let mut egui_render_state = world.resource_mut::<EguiRenderState>();
+                let mut egui_render_state = world.non_send_resource_mut::<EguiRenderState>();
                 egui_render_state.begin_frame(window);
 
                 // Pass over ownership of the frame data to the world for use in systems
@@ -226,7 +226,7 @@ impl ApplicationHandler for App {
                 // drawing egui and then send all commands to the GPU
                 let mut frame = world.remove_resource::<FrameRecord>().unwrap();
 
-                let mut egui_render_state = world.resource_mut::<EguiRenderState>();
+                let mut egui_render_state = world.non_send_resource_mut::<EguiRenderState>();
                 egui_render_state.end_frame_and_draw(
                     &gpu_handle.device,
                     &gpu_handle.queue,

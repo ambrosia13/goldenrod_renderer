@@ -3,13 +3,4 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.13" />
   </component>
-  <component name="RsExternalLinterProjectSettings">
-    <option name="tool" value="Clippy" />
-  </component>
-  <component name="RustProjectSettings">
-    <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
-  </component>
-  <component name="RustfmtProjectSettings">
-    <option name="useRustfmt" value="true" />
-  </component>
 </project>

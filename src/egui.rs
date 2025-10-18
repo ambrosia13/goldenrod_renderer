@@ -11,7 +11,7 @@ use winit::{event::WindowEvent, window::Window};
 
 // Taken from egui example at https://github.com/kaphula/winit-egui-wgpu-template
 
-#[derive(Resource)]
+// #[derive(Resource)]
 pub struct EguiRenderState {
     state: State,
     renderer: Renderer,

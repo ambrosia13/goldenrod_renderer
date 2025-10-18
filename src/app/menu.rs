@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use bevy_ecs::system::NonSend;
 use bevy_ecs::{
     event::EventWriter,
     resource::Resource,
@@ -52,7 +53,7 @@ impl Menu {
     pub fn update(
         mut menu: ResMut<Menu>,
         mut renderer_viewport: ResMut<RendererViewport>,
-        egui_render_state: Res<EguiRenderState>,
+        egui_render_state: NonSend<EguiRenderState>,
         window: Res<ResourceWrapper<Arc<Window>>>,
         fps_counter: Res<FpsCounter>,
         camera: Res<Camera>,
