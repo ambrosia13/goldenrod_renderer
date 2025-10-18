@@ -52,12 +52,19 @@ impl MaterialTextures {
                     wgpu::TextureViewDimension::D2,
                     wgpu::StorageTextureAccess::WriteOnly,
                 ),
-                wgputil::binding::bind_storage_texture(
+                wgputil::binding::bind_texture(
                     &previous_texture_view,
-                    previous_texture.format(),
+                    previous_texture
+                        .format()
+                        .sample_type(None, Some(gpu.device.features()))
+                        .unwrap(),
                     wgpu::TextureViewDimension::D2,
-                    wgpu::StorageTextureAccess::ReadOnly,
-                ),
+                ), // wgputil::binding::bind_storage_texture(
+                   //     &previous_texture_view,
+                   //     previous_texture.format(),
+                   //     wgpu::TextureViewDimension::D2,
+                   //     wgpu::StorageTextureAccess::ReadOnly,
+                   // ),
             ],
         );
 
@@ -121,7 +128,7 @@ impl MaterialTextures {
 
         let previous_desc = wgpu::TextureDescriptor {
             label: Some("material_pass_previous_texture"),
-            usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_DST,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             ..current_desc
         };
 

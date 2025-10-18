@@ -157,7 +157,7 @@ impl BindlessHeap {
 
     fn update_bind_group(&mut self) {
         log::info!(
-            "updating bindless heap bind group, s: {}, t: {}, b: {}",
+            "updating bindless heap bind group, samplers: {}, textures: {}, buffers: {}",
             // subtract 1 because of the dummy objects
             self.samplers.len() - 1,
             self.texture_views.len() - 1,
